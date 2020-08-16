@@ -1,4 +1,4 @@
-package internal
+package pager
 
 import (
 	"fmt"
@@ -7,7 +7,7 @@ import (
 )
 
 // LockPendingByte is the first byte of the lock-byte page. If a write lock
-// is held on this byte, then a client holds a PENDING lock on this DB.
+// is held on this byte, then a client holds a PENDING lock on this p.
 var LockPendingByte int64 = 0x40000000
 
 // LockReservedByte is the second byte of the lock-byte page. If a write lock
@@ -27,19 +27,25 @@ var LockSharedSize int64 = 510
 type LockType int
 
 const (
-	LockTypeUnknown LockType = iota
-	LockTypeNoLock
+	LockTypeNoLock LockType = iota
 	LockTypeShared
 	LockTypeReserved
 	LockTypePending
 	LockTypeExclusive
 )
 
-func (db *DB) Lock(typ LockType) (err error) {
+func (p *Pager) Lock(requestedType LockType) (err error) {
 	// TODO: confirm whether we need OS-specific implementations of lock commands
 	// TODO: do we want to wait? see SETLKW instead of SETLK
 
-	switch typ {
+	// If we already have this lock, or a stricter lock, then return early.
+	p.currentLockMutex.Lock() // TODO: singleflight
+	defer p.currentLockMutex.Unlock()
+	if p.currentLock >= requestedType {
+		return nil
+	}
+
+	switch requestedType {
 	case LockTypeShared:
 		// To obtain a SHARED lock, we:
 		//  1. Obtain a read lock on the pending byte
@@ -52,7 +58,7 @@ func (db *DB) Lock(typ LockType) (err error) {
 		// step in acquiring a non-shared locks.
 
 		// #1
-		if err := syscall.FcntlFlock(db.fd, syscall.F_SETLK, &syscall.Flock_t{
+		if err := syscall.FcntlFlock(p.fd, syscall.F_SETLK, &syscall.Flock_t{
 			Len:    1,
 			Start:  LockPendingByte,
 			Type:   syscall.F_RDLCK,
@@ -63,7 +69,7 @@ func (db *DB) Lock(typ LockType) (err error) {
 
 		// #3: defer s.t. we always release the pending read lock if we have acquired it.
 		defer func() {
-			if errRelease := syscall.FcntlFlock(db.fd, syscall.F_SETLK, &syscall.Flock_t{
+			if errRelease := syscall.FcntlFlock(p.fd, syscall.F_SETLK, &syscall.Flock_t{
 				Len:    1,
 				Start:  LockPendingByte,
 				Type:   syscall.F_UNLCK,
@@ -74,7 +80,7 @@ func (db *DB) Lock(typ LockType) (err error) {
 		}()
 
 		// #2
-		if err := syscall.FcntlFlock(db.fd, syscall.F_SETLK, &syscall.Flock_t{
+		if err := syscall.FcntlFlock(p.fd, syscall.F_SETLK, &syscall.Flock_t{
 			Len:    LockSharedSize,
 			Start:  LockSharedFirst,
 			Type:   syscall.F_RDLCK,
@@ -87,8 +93,42 @@ func (db *DB) Lock(typ LockType) (err error) {
 	// TODO: case LockTypePending:
 	// TODO: case LockTypeExclusive:
 	default:
-		return fmt.Errorf("unsupported lock type: %d", typ)
+		return fmt.Errorf("unsupported lock type: %d", requestedType)
 	}
+
+	p.currentLock = requestedType
+
+	return nil
+}
+
+func (p *Pager) Unlock(requestedType LockType) (err error) {
+	// If we already have this type, or less strict, then return early.
+	p.currentLockMutex.Lock() // TODO: singleflight
+	defer p.currentLockMutex.Unlock()
+	if p.currentLock <= requestedType {
+		return nil
+	}
+
+	switch requestedType {
+	case LockTypeNoLock:
+		// Unlock a shared lock, if held:
+		if err := syscall.FcntlFlock(p.fd, syscall.F_SETLK, &syscall.Flock_t{
+			Len:    LockSharedSize,
+			Start:  LockSharedFirst,
+			Type:   syscall.F_UNLCK,
+			Whence: io.SeekStart,
+		}); err != nil {
+			return err
+		}
+
+	// TODO: case LockTypeShared:
+	// TODO: case LockTypeReserved:
+	// TODO: case LockTypePending:
+	default:
+		return fmt.Errorf("unsupported lock type: %d", requestedType)
+	}
+
+	p.currentLock = requestedType
 
 	return nil
 }

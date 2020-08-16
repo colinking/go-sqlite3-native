@@ -1,4 +1,4 @@
-package internal
+package pager
 
 import (
 	"encoding/binary"
@@ -21,37 +21,37 @@ type SQLiteHeader struct {
 	// 0+16: magic string ("SQLite format 3" in UTF-8)
 	// ignored
 	// 16+2
-	PageSizeBytes int16
+	PageSizeBytes int
 	// 18+1
-	FileFormatWriteVersion int8
+	FileFormatWriteVersion int
 	// 19+1
-	FileFormatReadVersion int8
+	FileFormatReadVersion int
 	// 20+1
-	EOFPageByteReservation int8
+	EOFPageByteReservation int
 	// 21+1
-	EmbeddedPayloadFractionMax int8
+	EmbeddedPayloadFractionMax int
 	// 22+1
-	EmbeddedPayloadFractionMin int8
+	EmbeddedPayloadFractionMin int
 	// 23+1
-	LeafPayloadFractionMin int8
+	LeafPayloadFractionMin int
 	// 24+4
-	FileChangeCounter int32
+	FileChangeCounter int
 	// 28+4
-	DatabaseSizePages int32
+	DatabaseSizePages int
 	// 32+4
-	FreelistFirstPageIndex int32
+	FreelistFirstPageIndex int
 	// 36+4
-	FreelistNumPages int32
+	FreelistNumPages int
 	// 40+4
-	SchemaCookieNumber int32
+	SchemaCookieNumber int
 	// 44+56
-	VariadicElements []int32
+	VariadicElements []int
 }
 
-func (db *DB) ReadHeader() error {
+func (p *Pager) readHeader() error {
 	// The header is entirely stored in first 100 bytes of the file.
 	bytes := make([]byte, 100)
-	_, err := db.file.ReadAt(bytes, 0)
+	_, err := p.file.ReadAt(bytes, 0)
 	if err == io.EOF {
 		// TODO: a zero length file _is_ valid, so we need to support the same defaults.
 		return errors.New("reading empty files is not supported")
@@ -66,29 +66,29 @@ func (db *DB) ReadHeader() error {
 	if string(magicString) != "SQLite format 3\x00" {
 		return fmt.Errorf("invalid magic string (found: '%s'", magicString)
 	}
-	db.Header.PageSizeBytes = int16(binary.BigEndian.Uint16(bytes[offset : offset+2]))
+	p.Header.PageSizeBytes = int(binary.BigEndian.Uint16(bytes[offset : offset+2]))
 	offset += 2
-	db.Header.FileFormatWriteVersion = int8(bytes[offset])
+	p.Header.FileFormatWriteVersion = int(bytes[offset])
 	offset += 1
-	db.Header.FileFormatReadVersion = int8(bytes[offset])
+	p.Header.FileFormatReadVersion = int(bytes[offset])
 	offset += 1
-	db.Header.EOFPageByteReservation = int8(bytes[offset])
+	p.Header.EOFPageByteReservation = int(bytes[offset])
 	offset += 1
-	db.Header.EmbeddedPayloadFractionMax = int8(bytes[offset])
+	p.Header.EmbeddedPayloadFractionMax = int(bytes[offset])
 	offset += 1
-	db.Header.EmbeddedPayloadFractionMin = int8(bytes[offset])
+	p.Header.EmbeddedPayloadFractionMin = int(bytes[offset])
 	offset += 1
-	db.Header.LeafPayloadFractionMin = int8(bytes[offset])
+	p.Header.LeafPayloadFractionMin = int(bytes[offset])
 	offset += 1
-	db.Header.FileChangeCounter = int32(binary.BigEndian.Uint32(bytes[offset : offset+4]))
+	p.Header.FileChangeCounter = int(binary.BigEndian.Uint32(bytes[offset : offset+4]))
 	offset += 4
-	db.Header.DatabaseSizePages = int32(binary.BigEndian.Uint32(bytes[offset : offset+4]))
+	p.Header.DatabaseSizePages = int(binary.BigEndian.Uint32(bytes[offset : offset+4]))
 	offset += 4
-	db.Header.FreelistFirstPageIndex = int32(binary.BigEndian.Uint32(bytes[offset : offset+4]))
+	p.Header.FreelistFirstPageIndex = int(binary.BigEndian.Uint32(bytes[offset : offset+4]))
 	offset += 4
-	db.Header.FreelistNumPages = int32(binary.BigEndian.Uint32(bytes[offset : offset+4]))
+	p.Header.FreelistNumPages = int(binary.BigEndian.Uint32(bytes[offset : offset+4]))
 	offset += 4
-	db.Header.SchemaCookieNumber = int32(binary.BigEndian.Uint32(bytes[offset : offset+4]))
+	p.Header.SchemaCookieNumber = int(binary.BigEndian.Uint32(bytes[offset : offset+4]))
 	// offset += 4
 
 	return nil

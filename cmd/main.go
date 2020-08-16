@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"github.com/colinking/sqlite3-experiments/internal"
+	"github.com/colinking/sqlite3-experiments/internal/pager"
 	"github.com/segmentio/cli"
 	"github.com/segmentio/events/v2"
 	_ "github.com/segmentio/events/v2/ecslogs"
@@ -27,23 +28,28 @@ func printHeader(_ struct{}, path string) (int, error) {
 	}
 	defer db.Close()
 
-	events.Log("header: %+v", db.Header)
+	events.Log("header: %+v", db.Header())
 
 	return 0, nil
 }
 
 // Records stats on lock usage for a SQLite DB.
 func lockStats(_ struct{}, path string) (int, error) {
-	db, err := internal.Open(path)
+	p, err := pager.NewPager(path)
 	if err != nil {
 		return 1, err
 	}
-	defer db.Close()
+	defer p.Close()
 
-	err = db.Lock(internal.LockTypeShared)
+	err = p.Lock(pager.LockTypeShared)
 	if err != nil {
 		return 1, err
 	}
+	defer func() {
+		if err := p.Unlock(pager.LockTypeNoLock); err != nil {
+			events.Log("failed to unlock: %+v", err)
+		}
+	}()
 
 	time.Sleep(100 * time.Second)
 
