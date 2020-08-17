@@ -38,3 +38,96 @@ At this point, we have a workable POC that can perform queries e2e.
 - [ ] Hook up a real suite of tests and benchmarks
 - [ ] Gameday using all examples from the DML ledger, against mattn/go-sqlite3
 - [ ] Gameday via Argus
+
+## Query Patterns
+
+Checkpointing by the readers should be disabled (`PRAGMA wal_autocheckpoint = 0`), so we do not need to support that. There are some other SQLite query patterns used by the reflectors or executive, but we don't need to support them since those patterns are not needed the readers.
+
+We will need to support `immutable` mode, ...
+
+In terms of URI patterns, we'll need to support:
+
+- `file:$FILE_NAME?_journal_mode=wal&mode=$MODE`
+  - `MODE` is one of [`ro`, `rwc`] though the latter is only used for testing (see below)
+- `file:$FILE_NAME?immutable=true`
+
+### GetRowByKey
+
+`GetRowByKey` is the same as `GetRowsByKeyPrefix`, except that it includes all of the keys in the PK and therefore will only return 0 or 1 results. Therefore, `GetRowsByKeyPrefix` is a superset of `GetRowByKey`.
+
+```sql
+SELECT *
+FROM $ldbTableName
+WHERE
+  $pkCol1 = ?
+  AND $pkCol2 = ?
+  -- ...
+```
+
+### GetRowsByKeyPrefix
+
+```sql
+SELECT *
+FROM $ldbTableName
+```
+
+```sql
+SELECT *
+FROM $ldbTableName
+WHERE
+  $pkCol1 = ?
+  AND $pkCol2 = ?
+  -- ...
+```
+
+### GetLedgerLatency
+
+```sql
+SELECT timestamp
+FROM _ldb_last_update
+-- "ledger"
+WHERE name=?
+```
+
+### FetchSeqFromDB
+
+```sql
+SELECT seq
+FROM _ldb_seq
+WHERE id = 1
+```
+
+### Ping
+
+```sql
+SELECT seq
+FROM _ldb_seq
+-- 1
+WHERE id = ?
+```
+
+### getPrimaryKey
+
+```sql
+SELECT name, type
+-- ldbTable parameter
+FROM pragma_table_info(?)
+WHERE pk > 0
+ORDER BY pk ASC
+```
+
+```sql
+SELECT * FROM $ldbTable LIMIT 1
+```
+
+### TestUtils (EnsureLdbInitialized, etc.)
+
+The TestUtils require that we support creating tables and writing to them.
+
+In this case, let's just re-implement the testing libraries to use an in-memory LDB of some kind.
+
+Alternatively, we could implement an exclusive writer in this package that assumes it is the only reader/writer to the DB and where ACID compliance (f.e. WALing) isn't necessary. This would allow us to make a number of simplifying assumptions.
+
+### Edge Cases
+
+- PKs being dropped and re-created. Seems like there is some logic to handle execution errors and refresh the PK cache.
