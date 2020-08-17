@@ -1,1 +1,1 @@
-package internal
+package sqlite3native

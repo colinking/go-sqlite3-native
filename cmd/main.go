@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
+	"database/sql"
 	_ "net/http/pprof"
 	"time"
 
-	"github.com/colinking/sqlite3-experiments/internal"
-	"github.com/colinking/sqlite3-experiments/internal/pager"
+	"github.com/colinking/sqlite3native"
+	"github.com/colinking/sqlite3native/internal/pager"
 	"github.com/segmentio/cli"
 	"github.com/segmentio/events/v2"
 	_ "github.com/segmentio/events/v2/ecslogs"
@@ -22,13 +24,28 @@ func main() {
 
 // Dumps the contents of a SQLite DB header.
 func printHeader(_ struct{}, path string) (int, error) {
-	db, err := internal.Open(path)
+	db, err := sql.Open("sqlite3-native", path)
 	if err != nil {
 		return 1, err
 	}
 	defer db.Close()
 
-	events.Log("header: %+v", db.Header())
+	conn, err := db.Conn(context.Background())
+	if err != nil {
+		return 1, err
+	}
+	defer conn.Close()
+
+	err = conn.Raw(func(driverConn interface{}) error {
+		_conn := driverConn.(*sqlite3native.Conn)
+
+		events.Log("header: %+v", _conn.Header())
+
+		return nil
+	})
+	if err != nil {
+		return 1, err
+	}
 
 	return 0, nil
 }

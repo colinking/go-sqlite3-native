@@ -1,4 +1,4 @@
-module github.com/colinking/sqlite3-experiments
+module github.com/colinking/sqlite3native
 
 go 1.14
 
