@@ -6,15 +6,14 @@ import (
 	"database/sql/driver"
 
 	"github.com/colinking/go-sqlite3-native/internal/pager"
+	"github.com/colinking/go-sqlite3-native/internal/vm"
 )
 
 func init() {
 	sql.Register("sqlite3-native", &Driver{})
 }
 
-type Driver struct {
-	// TODO
-}
+type Driver struct{}
 
 var _ driver.Driver = &Driver{}
 var _ driver.DriverContext = &Driver{}
@@ -29,7 +28,7 @@ func (d *Driver) Open(name string) (driver.Conn, error) {
 }
 
 func (d *Driver) OpenConnector(name string) (driver.Connector, error) {
-	// TODO: URI parsing of name, instead of assuming it is a file path
+	// TODO: URI parsing of name to support file:// notation
 
 	return &Connector{
 		name:   name,
@@ -51,7 +50,10 @@ func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
 		return &Conn{}, err
 	}
 
+	m := vm.NewVM()
+
 	return &Conn{
+		vm:    m,
 		pager: pager,
 	}, nil
 }

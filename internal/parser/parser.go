@@ -45,12 +45,6 @@ type listener struct {
 
 var _ generated.SQLListener = &listener{}
 
-// VisitTerminal is called when a terminal node is visited.
-func (s *listener) VisitTerminal(node antlr.TerminalNode) {}
-
-// VisitErrorNode is called when an error node is visited.
-func (s *listener) VisitErrorNode(node antlr.ErrorNode) {}
-
 // EnterStart is called when production start is entered.
 func (s *listener) EnterStart(ctx *generated.StartContext) {
 	// TODO: add the basic structure
@@ -58,33 +52,3 @@ func (s *listener) EnterStart(ctx *generated.StartContext) {
 
 // ExitStart is called when production start is exited.
 func (s *listener) ExitStart(ctx *generated.StartContext) {}
-
-// EnterExpression is called when production expression is entered.
-func (s *listener) EnterExpression(ctx *generated.ExpressionContext) {}
-
-// ExitExpression is called when production expression is exited.
-func (s *listener) ExitExpression(ctx *generated.ExpressionContext) {}
-
-// EnterSelectExpression is called when production selectExpression is entered.
-func (s *listener) EnterSelectExpression(ctx *generated.SelectExpressionContext) {}
-
-// ExitSelectExpression is called when production selectExpression is exited.
-func (s *listener) ExitSelectExpression(ctx *generated.SelectExpressionContext) {}
-
-// EnterArgs is called when production args is entered.
-func (s *listener) EnterArgs(ctx *generated.ArgsContext) {}
-
-// ExitArgs is called when production args is exited.
-func (s *listener) ExitArgs(ctx *generated.ArgsContext) {}
-
-// EnterIdentifier is called when production identifier is entered.
-func (s *listener) EnterIdentifier(ctx *generated.IdentifierContext) {}
-
-// ExitIdentifier is called when production identifier is exited.
-func (s *listener) ExitIdentifier(ctx *generated.IdentifierContext) {}
-
-// EnterIdentifierEnd is called when production identifierEnd is entered.
-func (s *listener) EnterIdentifierEnd(ctx *generated.IdentifierEndContext) {}
-
-// ExitIdentifierEnd is called when production identifierEnd is exited.
-func (s *listener) ExitIdentifierEnd(ctx *generated.IdentifierEndContext) {}
