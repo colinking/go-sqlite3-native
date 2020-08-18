@@ -8,4 +8,5 @@ require (
 	github.com/segmentio/cli v0.3.4
 	github.com/segmentio/events v1.0.0
 	github.com/segmentio/events/v2 v2.4.0
+	github.com/stretchr/testify v1.6.1
 )
