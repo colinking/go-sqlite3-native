@@ -1,0 +1,49 @@
+token literal names:
+null
+'SELECT'
+'FROM'
+'WHERE'
+'ORDER'
+'BY'
+'ASC'
+'DESC'
+'LIMIT'
+'AND'
+'='
+'>'
+null
+'?'
+'0'
+null
+','
+'('
+')'
+
+token symbolic names:
+null
+SELECT
+FROM
+WHERE
+ORDER
+BY
+ASC
+DESC
+LIMIT
+AND
+EQUAL
+GREATER
+IDENTIFIER
+PLACEHOLDER
+INT_LITERAL
+STRING_LITERAL
+COMMA
+LPAREN
+RPAREN
+
+rule names:
+start
+expression
+
+
+atn:
+[3, 24715, 42794, 33075, 47597, 16764, 15335, 30598, 22884, 3, 20, 12, 4, 2, 9, 2, 4, 3, 9, 3, 3, 2, 3, 2, 3, 2, 3, 3, 3, 3, 3, 3, 2, 2, 4, 2, 4, 2, 2, 2, 9, 2, 6, 3, 2, 2, 2, 4, 9, 3, 2, 2, 2, 6, 7, 5, 4, 3, 2, 7, 8, 7, 2, 2, 3, 8, 3, 3, 2, 2, 2, 9, 10, 7, 3, 2, 2, 10, 5, 3, 2, 2, 2, 2]

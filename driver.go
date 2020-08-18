@@ -5,7 +5,7 @@ import (
 	"database/sql"
 	"database/sql/driver"
 
-	"github.com/colinking/sqlite3native/internal/pager"
+	"github.com/colinking/go-sqlite3-native/internal/pager"
 )
 
 func init() {

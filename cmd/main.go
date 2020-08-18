@@ -6,8 +6,8 @@ import (
 	_ "net/http/pprof"
 	"time"
 
-	"github.com/colinking/sqlite3native"
-	"github.com/colinking/sqlite3native/internal/pager"
+	sqlite3native "github.com/colinking/go-sqlite3-native"
+	"github.com/colinking/go-sqlite3-native/internal/pager"
 	"github.com/segmentio/cli"
 	"github.com/segmentio/events/v2"
 	_ "github.com/segmentio/events/v2/ecslogs"
@@ -19,6 +19,7 @@ func main() {
 	cli.Exec(cli.CommandSet{
 		"printHeader": cli.Command(printHeader),
 		"lockStats":   cli.Command(lockStats),
+		"query":       cli.Command(query),
 	})
 }
 
@@ -69,6 +70,33 @@ func lockStats(_ struct{}, path string) (int, error) {
 	}()
 
 	time.Sleep(100 * time.Second)
+
+	return 0, nil
+}
+
+// query does a sample query on the DB
+func query(_ struct{}, path string) (int, error) {
+	db, err := sql.Open("sqlite3-native", path)
+	if err != nil {
+		return 1, err
+	}
+	defer db.Close()
+
+	rows, err := db.QueryContext(context.Background(), `SELECT column1 FROM table1;`)
+	if err != nil {
+		return 1, err
+	}
+
+	for rows.Next() {
+		var column1 int
+		if err := rows.Scan(&column1); err != nil {
+			return 1, err
+		}
+		events.Log("column1: %d", column1)
+	}
+	if err := rows.Err(); err != nil {
+		return 1, err
+	}
 
 	return 0, nil
 }
