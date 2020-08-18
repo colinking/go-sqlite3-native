@@ -8,8 +8,6 @@ import (
 )
 
 func TestParser(tt *testing.T) {
-	p := NewParser()
-
 	for _, test := range []struct {
 		name    string
 		sql     string
@@ -22,7 +20,7 @@ func TestParser(tt *testing.T) {
 		},
 	} {
 		tt.Run(test.name, func(t *testing.T) {
-			result, err := p.Parse(test.sql)
+			result, err := Parse(test.sql)
 			require.NoError(t, err)
 
 			require.Equal(t, test.program, result)

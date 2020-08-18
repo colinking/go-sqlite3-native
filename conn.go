@@ -38,8 +38,7 @@ var _ driver.ConnBeginTx = &Conn{}
 // }
 
 func (c *Conn) QueryContext(ctx context.Context, query string, args []driver.NamedValue) (driver.Rows, error) {
-	p := parser.NewParser()
-	_, err := p.Parse(query)
+	_, err := parser.Parse(query)
 	if err != nil {
 		return nil, err
 	}
