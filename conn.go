@@ -98,12 +98,13 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, e
 			{vm.OpcodeTransaction, 0, 0, 1, 0, 1},
 			{vm.OpcodeGoto, 0, 1, 0, 0, 0},
 		},
+		NumPlaceholders: 0,
+		Columns:         []string{"column1"},
 	}
 
 	return &Stmt{
-		conn:            c,
-		program:         program,
-		numPlaceholders: 0,
+		conn:    c,
+		program: program,
 	}, nil
 }
 

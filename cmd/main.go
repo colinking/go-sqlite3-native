@@ -82,7 +82,7 @@ func query(_ struct{}, path string) (int, error) {
 	}
 	defer db.Close()
 
-	rows, err := db.QueryContext(context.Background(), `SELECT column1 FROM table1;`)
+	rows, err := db.QueryContext(context.Background(), `SELECT * FROM table1`)
 	if err != nil {
 		return 1, err
 	}

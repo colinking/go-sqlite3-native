@@ -1,7 +1,11 @@
 package vm
 
+import "fmt"
+
 type Program struct {
-	Instructions []Instruction
+	Instructions    []Instruction
+	NumPlaceholders int
+	Columns         []string
 }
 
 type Instruction struct {
@@ -14,6 +18,11 @@ type Instruction struct {
 	P5 int
 }
 
+func (i Instruction) String() string {
+	return fmt.Sprintf("%s(P1: %d, P2: %d, P3: %d, P4: %d, P5: %d)", i.Op.String(), i.P1, i.P2, i.P3, i.P4, i.P5)
+}
+
+//go:generate stringer -type=Opcode
 type Opcode int
 
 const (

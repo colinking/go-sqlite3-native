@@ -10,6 +10,9 @@ build-dbs:
 	$Q sqlite3 tmp/simple.db "CREATE table table1(column1 int); INSERT INTO table1 (column1) VALUES (123), (456);"
 .PHONY: build-db
 
+# You'll need:
+#  - go get -u -a golang.org/x/tools/cmd/stringer
+#  - brew install antlr
 generate: gen
 gen:
 	$Q go generate ./...

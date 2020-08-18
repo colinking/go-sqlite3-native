@@ -8,9 +8,8 @@ import (
 )
 
 type Stmt struct {
-	conn            *Conn
-	program         vm.Program
-	numPlaceholders int
+	conn    *Conn
+	program vm.Program
 }
 
 var _ driver.Stmt = &Stmt{}
@@ -30,11 +29,10 @@ func (s *Stmt) Query(args []driver.Value) (driver.Rows, error) {
 }
 
 func (s *Stmt) QueryContext(ctx context.Context, args []driver.NamedValue) (driver.Rows, error) {
-	if err := s.conn.vm.Run(s.program); err != nil {
-		return nil, err
-	}
-
-	panic("QueryContext not implemented")
+	return &Rows{
+		program:   s.program,
+		execution: s.conn.vm.Execute(s.program),
+	}, nil
 }
 
 func (s *Stmt) Exec(args []driver.Value) (driver.Result, error) {
@@ -54,7 +52,7 @@ func (s *Stmt) ExecContext(ctx context.Context, args []driver.NamedValue) (drive
 }
 
 func (s *Stmt) NumInput() int {
-	return s.numPlaceholders
+	return s.program.NumPlaceholders
 }
 
 func (s *Stmt) Close() error {

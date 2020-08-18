@@ -34,6 +34,7 @@ const (
 	LockTypeExclusive
 )
 
+// TODO: this is not safe to use across threads because of the way POSIX locks are implemented.
 func (p *Pager) Lock(requestedType LockType) (err error) {
 	// TODO: confirm whether we need OS-specific implementations of lock commands
 	// TODO: do we want to wait? see SETLKW instead of SETLK

@@ -1,2 +1,5 @@
 # antlr generated code
 internal/parser/generated/**/* linguist-generated=true
+
+# stringer generated code
+internal/**/*_string.go linguist-generated=true
