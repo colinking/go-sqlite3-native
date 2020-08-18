@@ -34,7 +34,8 @@ Greater: '>';
 
 // Literals
 Number: [0-9]+;
-Letter: [a-zA-Z]+;
+Letter: [a-zA-Z_]+;
+Identifier: Letter (Letter | Number)*;
 
 // Syntax
 Comma: ',';
@@ -42,13 +43,16 @@ LParen: '(';
 RParen: ')';
 Semicolon: ';';
 
+// Pragmas
+PragmaTableInfo: 'pragma_table_info';
+
 // Ignore whitespace
 WHITESPACE: [ \r\n\t]+ -> skip;
 
 /* Rules */
 
 start
-  : expression EOF
+  : expression (EOF | Semicolon) 
   ;
 
 expression
@@ -56,20 +60,36 @@ expression
   ;
 
 selectExpression
-  : Select args
+  : Select args From table where? orderBy? limit?
+  ;
+
+table
+  : Identifier
+  | PragmaTableInfo LParen Placeholder RParen
   ;
 
 args
   : Star
-  | identifier
+  | columns
   ;
 
-identifier
-  : Letter identifierEnd
+columns
+  : Identifier (Comma columns)?
   ;
 
-identifierEnd
-  :
-  | Letter identifierEnd
-  | Number identifierEnd
+where
+  : Where clause (And clause)*
+  ;
+
+clause
+  : Identifier Equal ( Number | Placeholder )
+  | Identifier Greater ( Number | Placeholder )
+  ;
+
+orderBy
+  : Order By Identifier (Asc | Desc)?
+  ;
+
+limit
+  : Limit Number
   ;

@@ -38,20 +38,44 @@ func (s *BaseSQLListener) EnterSelectExpression(ctx *SelectExpressionContext) {}
 // ExitSelectExpression is called when production selectExpression is exited.
 func (s *BaseSQLListener) ExitSelectExpression(ctx *SelectExpressionContext) {}
 
+// EnterTable is called when production table is entered.
+func (s *BaseSQLListener) EnterTable(ctx *TableContext) {}
+
+// ExitTable is called when production table is exited.
+func (s *BaseSQLListener) ExitTable(ctx *TableContext) {}
+
 // EnterArgs is called when production args is entered.
 func (s *BaseSQLListener) EnterArgs(ctx *ArgsContext) {}
 
 // ExitArgs is called when production args is exited.
 func (s *BaseSQLListener) ExitArgs(ctx *ArgsContext) {}
 
-// EnterIdentifier is called when production identifier is entered.
-func (s *BaseSQLListener) EnterIdentifier(ctx *IdentifierContext) {}
+// EnterColumns is called when production columns is entered.
+func (s *BaseSQLListener) EnterColumns(ctx *ColumnsContext) {}
 
-// ExitIdentifier is called when production identifier is exited.
-func (s *BaseSQLListener) ExitIdentifier(ctx *IdentifierContext) {}
+// ExitColumns is called when production columns is exited.
+func (s *BaseSQLListener) ExitColumns(ctx *ColumnsContext) {}
 
-// EnterIdentifierEnd is called when production identifierEnd is entered.
-func (s *BaseSQLListener) EnterIdentifierEnd(ctx *IdentifierEndContext) {}
+// EnterWhere is called when production where is entered.
+func (s *BaseSQLListener) EnterWhere(ctx *WhereContext) {}
 
-// ExitIdentifierEnd is called when production identifierEnd is exited.
-func (s *BaseSQLListener) ExitIdentifierEnd(ctx *IdentifierEndContext) {}
+// ExitWhere is called when production where is exited.
+func (s *BaseSQLListener) ExitWhere(ctx *WhereContext) {}
+
+// EnterClause is called when production clause is entered.
+func (s *BaseSQLListener) EnterClause(ctx *ClauseContext) {}
+
+// ExitClause is called when production clause is exited.
+func (s *BaseSQLListener) ExitClause(ctx *ClauseContext) {}
+
+// EnterOrderBy is called when production orderBy is entered.
+func (s *BaseSQLListener) EnterOrderBy(ctx *OrderByContext) {}
+
+// ExitOrderBy is called when production orderBy is exited.
+func (s *BaseSQLListener) ExitOrderBy(ctx *OrderByContext) {}
+
+// EnterLimit is called when production limit is entered.
+func (s *BaseSQLListener) EnterLimit(ctx *LimitContext) {}
+
+// ExitLimit is called when production limit is exited.
+func (s *BaseSQLListener) ExitLimit(ctx *LimitContext) {}

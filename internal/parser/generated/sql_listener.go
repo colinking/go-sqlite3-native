@@ -16,14 +16,26 @@ type SQLListener interface {
 	// EnterSelectExpression is called when entering the selectExpression production.
 	EnterSelectExpression(c *SelectExpressionContext)
 
+	// EnterTable is called when entering the table production.
+	EnterTable(c *TableContext)
+
 	// EnterArgs is called when entering the args production.
 	EnterArgs(c *ArgsContext)
 
-	// EnterIdentifier is called when entering the identifier production.
-	EnterIdentifier(c *IdentifierContext)
+	// EnterColumns is called when entering the columns production.
+	EnterColumns(c *ColumnsContext)
 
-	// EnterIdentifierEnd is called when entering the identifierEnd production.
-	EnterIdentifierEnd(c *IdentifierEndContext)
+	// EnterWhere is called when entering the where production.
+	EnterWhere(c *WhereContext)
+
+	// EnterClause is called when entering the clause production.
+	EnterClause(c *ClauseContext)
+
+	// EnterOrderBy is called when entering the orderBy production.
+	EnterOrderBy(c *OrderByContext)
+
+	// EnterLimit is called when entering the limit production.
+	EnterLimit(c *LimitContext)
 
 	// ExitStart is called when exiting the start production.
 	ExitStart(c *StartContext)
@@ -34,12 +46,24 @@ type SQLListener interface {
 	// ExitSelectExpression is called when exiting the selectExpression production.
 	ExitSelectExpression(c *SelectExpressionContext)
 
+	// ExitTable is called when exiting the table production.
+	ExitTable(c *TableContext)
+
 	// ExitArgs is called when exiting the args production.
 	ExitArgs(c *ArgsContext)
 
-	// ExitIdentifier is called when exiting the identifier production.
-	ExitIdentifier(c *IdentifierContext)
+	// ExitColumns is called when exiting the columns production.
+	ExitColumns(c *ColumnsContext)
 
-	// ExitIdentifierEnd is called when exiting the identifierEnd production.
-	ExitIdentifierEnd(c *IdentifierEndContext)
+	// ExitWhere is called when exiting the where production.
+	ExitWhere(c *WhereContext)
+
+	// ExitClause is called when exiting the clause production.
+	ExitClause(c *ClauseContext)
+
+	// ExitOrderBy is called when exiting the orderBy production.
+	ExitOrderBy(c *OrderByContext)
+
+	// ExitLimit is called when exiting the limit production.
+	ExitLimit(c *LimitContext)
 }
