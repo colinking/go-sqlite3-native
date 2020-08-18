@@ -31,3 +31,27 @@ func (s *BaseSQLListener) EnterExpression(ctx *ExpressionContext) {}
 
 // ExitExpression is called when production expression is exited.
 func (s *BaseSQLListener) ExitExpression(ctx *ExpressionContext) {}
+
+// EnterSelectExpression is called when production selectExpression is entered.
+func (s *BaseSQLListener) EnterSelectExpression(ctx *SelectExpressionContext) {}
+
+// ExitSelectExpression is called when production selectExpression is exited.
+func (s *BaseSQLListener) ExitSelectExpression(ctx *SelectExpressionContext) {}
+
+// EnterArgs is called when production args is entered.
+func (s *BaseSQLListener) EnterArgs(ctx *ArgsContext) {}
+
+// ExitArgs is called when production args is exited.
+func (s *BaseSQLListener) ExitArgs(ctx *ArgsContext) {}
+
+// EnterIdentifier is called when production identifier is entered.
+func (s *BaseSQLListener) EnterIdentifier(ctx *IdentifierContext) {}
+
+// ExitIdentifier is called when production identifier is exited.
+func (s *BaseSQLListener) ExitIdentifier(ctx *IdentifierContext) {}
+
+// EnterIdentifierEnd is called when production identifierEnd is entered.
+func (s *BaseSQLListener) EnterIdentifierEnd(ctx *IdentifierEndContext) {}
+
+// ExitIdentifierEnd is called when production identifierEnd is exited.
+func (s *BaseSQLListener) ExitIdentifierEnd(ctx *IdentifierEndContext) {}

@@ -16,37 +16,60 @@ grammar SQL;
 /* Tokens */
 
 // Keywords
-SELECT: 'SELECT';
-FROM: 'FROM';
-WHERE: 'WHERE';
-ORDER: 'ORDER';
-BY: 'BY';
-ASC: 'ASC';
-DESC: 'DESC';
-LIMIT: 'LIMIT';
+Select: 'SELECT';
+From: 'FROM';
+Where: 'WHERE';
+Order: 'ORDER';
+By: 'BY';
+Asc: 'ASC';
+Desc: 'DESC';
+Limit: 'LIMIT';
+Star: '*';
+Placeholder: '?';
 
 // Expressions
-AND: 'AND';
-EQUAL: '=';
-GREATER: '>';
-
-// Identifiers
-IDENTIFIER: 'todo'; // TODO
-PLACEHOLDER: '?';
+And: 'AND';
+Equal: '=';
+Greater: '>';
 
 // Literals
-INT_LITERAL: '0'; // TODO
-STRING_LITERAL: 'todo'; // TODO
+Number: [0-9]+;
+Letter: [a-zA-Z]+;
 
 // Syntax
-COMMA: ',';
-LPAREN: '(';
-RPAREN: ')';
+Comma: ',';
+LParen: '(';
+RParen: ')';
+Semicolon: ';';
+
+// Ignore whitespace
+WHITESPACE: [ \r\n\t]+ -> skip;
 
 /* Rules */
 
-start: expression EOF;
+start
+  : expression EOF
+  ;
 
 expression
-  : SELECT
+  : selectExpression
+  ;
+
+selectExpression
+  : Select args
+  ;
+
+args
+  : Star
+  | identifier
+  ;
+
+identifier
+  : Letter identifierEnd
+  ;
+
+identifierEnd
+  :
+  | Letter identifierEnd
+  | Number identifierEnd
   ;

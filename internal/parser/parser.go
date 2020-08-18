@@ -16,13 +16,19 @@ func NewParser() *Parser {
 }
 
 func (p *Parser) Parse(query string) (struct{}, error) {
-	// TODO
 	is := antlr.NewInputStream(query)
-	_ = generated.NewSQLLexer(is)
 
-	// for {
-	// 	t := lexer.NextToken()
-	// }
+	// Create a lexer which can take arbitrary user-supplied strings and convert them
+	// into tokens that we can produce a parse tree on.
+	gLexer := generated.NewSQLLexer(is)
+	stream := antlr.NewCommonTokenStream(gLexer, antlr.LexerDefaultTokenChannel)
+
+	// Create a parser that can consume the list of tokens and produce a parse tree that we can walk:
+	gParser := generated.NewSQLParser(stream)
+
+	// Walk through the parse tree. This walk will invoke methods on the listener
+	// which we can catch in order to produce our bytecode program.
+	antlr.ParseTreeWalkerDefault.Walk(&generated.BaseSQLListener{}, gParser.Start())
 
 	return struct{}{}, nil
 }
