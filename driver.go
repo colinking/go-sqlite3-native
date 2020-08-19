@@ -6,6 +6,7 @@ import (
 	"database/sql/driver"
 
 	"github.com/colinking/go-sqlite3-native/internal/pager"
+	"github.com/colinking/go-sqlite3-native/internal/tree"
 	"github.com/colinking/go-sqlite3-native/internal/vm"
 )
 
@@ -49,12 +50,11 @@ func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
 	if err != nil {
 		return &Conn{}, err
 	}
-
-	m := vm.NewVM()
+	tree := tree.NewTree(pager)
+	m := vm.NewVM(tree)
 
 	return &Conn{
-		vm:    m,
-		pager: pager,
+		vm: m,
 	}, nil
 }
 

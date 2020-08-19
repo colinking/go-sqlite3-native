@@ -4,9 +4,8 @@ import (
 	"context"
 	"database/sql"
 	_ "net/http/pprof"
-	"time"
 
-	sqlite3native "github.com/colinking/go-sqlite3-native"
+	_ "github.com/colinking/go-sqlite3-native"
 	"github.com/colinking/go-sqlite3-native/internal/pager"
 	"github.com/segmentio/cli"
 	"github.com/segmentio/events/v2"
@@ -18,61 +17,55 @@ import (
 func main() {
 	cli.Exec(cli.CommandSet{
 		"printHeader": cli.Command(printHeader),
-		"lockStats":   cli.Command(lockStats),
-		"query":       cli.Command(query),
+		// "lockStats":   cli.Command(lockStats),
+		"query": cli.Command(query),
 	})
 }
 
 // Dumps the contents of a SQLite DB header.
 func printHeader(_ struct{}, path string) (int, error) {
-	db, err := sql.Open("sqlite3-native", path)
+	p, err := pager.NewPager(path)
 	if err != nil {
 		return 1, err
 	}
-	defer db.Close()
+	defer func() {
+		if err := p.Close(); err != nil {
+			events.Log("%+v", err)
+		}
+	}()
 
-	conn, err := db.Conn(context.Background())
+	header, err := p.Header()
 	if err != nil {
 		return 1, err
 	}
-	defer conn.Close()
 
-	err = conn.Raw(func(driverConn interface{}) error {
-		_conn := driverConn.(*sqlite3native.Conn)
-
-		events.Log("header: %+v", _conn.Header())
-
-		return nil
-	})
-	if err != nil {
-		return 1, err
-	}
+	events.Log("header: %+v", header)
 
 	return 0, nil
 }
 
 // Records stats on lock usage for a SQLite DB.
-func lockStats(_ struct{}, path string) (int, error) {
-	p, err := pager.NewPager(path)
-	if err != nil {
-		return 1, err
-	}
-	defer p.Close()
+// func lockStats(_ struct{}, path string) (int, error) {
+// 	p, err := pager.NewPager(path)
+// 	if err != nil {
+// 		return 1, err
+// 	}
+// 	defer p.Close()
 
-	err = p.Lock(pager.LockTypeShared)
-	if err != nil {
-		return 1, err
-	}
-	defer func() {
-		if err := p.Unlock(pager.LockTypeNoLock); err != nil {
-			events.Log("failed to unlock: %+v", err)
-		}
-	}()
+// 	err = p.Lock(pager.LockTypeShared)
+// 	if err != nil {
+// 		return 1, err
+// 	}
+// 	defer func() {
+// 		if err := p.Unlock(pager.LockTypeNoLock); err != nil {
+// 			events.Log("failed to unlock: %+v", err)
+// 		}
+// 	}()
 
-	time.Sleep(100 * time.Second)
+// 	time.Sleep(100 * time.Second)
 
-	return 0, nil
-}
+// 	return 0, nil
+// }
 
 // query does a sample query on the DB
 func query(_ struct{}, path string) (int, error) {

@@ -1,19 +1,30 @@
 package vm
 
-import "fmt"
+import (
+	"fmt"
+
+	"github.com/colinking/go-sqlite3-native/internal/tree"
+)
 
 const TupleBufferSize = 100
 
 type VM struct {
-	// TODO
+	tree *tree.Tree
 }
 
-func NewVM() *VM {
-	return &VM{}
+func NewVM(tree *tree.Tree) *VM {
+	return &VM{
+		tree: tree,
+	}
+}
+
+func (m *VM) Close() error {
+	return m.tree.Close()
 }
 
 type Execution struct {
 	program Program
+	tree    *tree.Tree
 	results chan *Tuple
 	done    chan error
 }
@@ -26,6 +37,7 @@ func (m *VM) Execute(program Program) *Execution {
 	e := &Execution{
 		program: program,
 
+		tree:    m.tree,
 		results: make(chan *Tuple, TupleBufferSize),
 		done:    make(chan error),
 	}
@@ -54,10 +66,28 @@ func (e *Execution) run() {
 		case OpcodeHalt: // https://www.sqlite.org/opcode.html#Halt
 			pc = len(e.program.Instructions)
 		case OpcodeTransaction: // https://www.sqlite.org/opcode.html#Transaction
-			// TODO: start a read transaction by acquiring the shared lock
-			// TODO: once you have the read tx, validate P3 and P4
-			e.done <- fmt.Errorf("finish todos in transaction opcode")
-			return
+			// Start a read transaction by looking up the header:
+			header, err := e.tree.Header()
+			if err != nil {
+				e.done <- err
+				return
+			}
+
+			// By definition, we only check these header values if P5!=0.
+			if inst.P5 != 0 {
+				// Verify the schema cookie
+				if inst.P3 != header.SchemaCookieNumber {
+					// this is a SQLITE_SCHEMA error indicating the program should be re-compiled.
+					e.done <- fmt.Errorf("invalid schema cookie number: expected %d got %d", inst.P3, header.SchemaCookieNumber)
+					return
+				}
+
+				// NOTE: there's some kind of "schema generation counter" to validate here that
+				// is not well-defined.
+			}
+		case OpcodeGoto: // https://www.sqlite.org/opcode.html#Goto
+			pc = inst.P2
+			pc-- // negate pc++
 
 		// TODO: other opcodes
 		default:

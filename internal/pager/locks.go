@@ -35,13 +35,11 @@ const (
 )
 
 // TODO: this is not safe to use across threads because of the way POSIX locks are implemented.
-func (p *Pager) Lock(requestedType LockType) (err error) {
+func (p *Pager) lock(requestedType LockType) (err error) {
 	// TODO: confirm whether we need OS-specific implementations of lock commands
 	// TODO: do we want to wait? see SETLKW instead of SETLK
 
 	// If we already have this lock, or a stricter lock, then return early.
-	p.currentLockMutex.Lock() // TODO: singleflight
-	defer p.currentLockMutex.Unlock()
 	if p.currentLock >= requestedType {
 		return nil
 	}
@@ -102,10 +100,8 @@ func (p *Pager) Lock(requestedType LockType) (err error) {
 	return nil
 }
 
-func (p *Pager) Unlock(requestedType LockType) (err error) {
+func (p *Pager) unlock(requestedType LockType) (err error) {
 	// If we already have this type, or less strict, then return early.
-	p.currentLockMutex.Lock() // TODO: singleflight
-	defer p.currentLockMutex.Unlock()
 	if p.currentLock <= requestedType {
 		return nil
 	}

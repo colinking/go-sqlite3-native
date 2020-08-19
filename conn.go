@@ -4,15 +4,13 @@ import (
 	"context"
 	"database/sql/driver"
 
-	"github.com/colinking/go-sqlite3-native/internal/pager"
 	"github.com/colinking/go-sqlite3-native/internal/parser"
 	"github.com/colinking/go-sqlite3-native/internal/vm"
 	"github.com/segmentio/events/v2"
 )
 
 type Conn struct {
-	vm    *vm.VM
-	pager *pager.Pager
+	vm *vm.VM
 }
 
 var _ driver.Conn = &Conn{}
@@ -118,9 +116,5 @@ func (c *Conn) BeginTx(ctx context.Context, opts driver.TxOptions) (driver.Tx, e
 }
 
 func (c *Conn) Close() error {
-	return c.pager.Close()
-}
-
-func (c *Conn) Header() pager.SQLiteHeader {
-	return c.pager.Header
+	return c.vm.Close()
 }
