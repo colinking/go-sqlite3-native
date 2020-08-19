@@ -88,6 +88,22 @@ func (e *Execution) run() {
 		case OpcodeGoto: // https://www.sqlite.org/opcode.html#Goto
 			pc = inst.P2
 			pc-- // negate pc++
+		case OpcodeOpenRead: // https://www.sqlite.org/opcode.html#OpenRead
+			if inst.P3 != 0 {
+				// We don't need temporary tables because we don't support complex JOINs.
+				// And we don't support ATTACH-ing other databases. Therefore this should always
+				// be on the main database.
+				e.done <- fmt.Errorf("operations on databases other than main are not supported: %d", inst.P3)
+				return
+			}
+
+			// cursorID := inst.P1
+			// rootPageNumber := inst.P2
+			// numColumns := inst.P4
+
+			// TODO: open cursor with the tree module
+			e.done <- fmt.Errorf("todo tree module")
+			return
 
 		// TODO: other opcodes
 		default:
