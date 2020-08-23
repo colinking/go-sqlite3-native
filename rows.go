@@ -5,7 +5,6 @@ import (
 	"io"
 
 	"github.com/colinking/go-sqlite3-native/internal/vm"
-	"github.com/segmentio/events/v2"
 )
 
 type Rows struct {
@@ -28,9 +27,11 @@ func (r *Rows) Next(dest []driver.Value) error {
 	if t == nil {
 		return io.EOF
 	}
+	columns := *t
 
-	// TODO: load tuple into dest
-	events.Log("tuple: %+v", t)
+	for i := range columns {
+		dest[i] = columns[i].Value()
+	}
 
 	return nil
 }

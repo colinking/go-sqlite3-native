@@ -8,6 +8,14 @@ type Program struct {
 	Columns         []string
 }
 
+func (p Program) String() string {
+	s := ""
+	for i, inst := range p.Instructions {
+		s += fmt.Sprintf("%d: %s\n", i, inst)
+	}
+	return s
+}
+
 type Instruction struct {
 	Op Opcode
 

@@ -50,8 +50,8 @@ func (c *Connector) Connect(ctx context.Context) (driver.Conn, error) {
 	if err != nil {
 		return &Conn{}, err
 	}
-	tree := tree.NewTree(pager)
-	m := vm.NewVM(tree)
+	tm := tree.NewManager(pager)
+	m := vm.NewVM(tm)
 
 	return &Conn{
 		vm: m,

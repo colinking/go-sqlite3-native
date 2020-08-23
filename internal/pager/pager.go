@@ -23,7 +23,7 @@ type Pager struct {
 	// TODO: add an optional LRU in-memory cache
 
 	path        string
-	header      SQLiteHeader
+	header      *SQLiteHeader
 	currentLock LockType
 	refCount    int
 	file        *os.File
@@ -48,45 +48,70 @@ func NewPager(path string) (*Pager, error) {
 		pid:         int32(os.Getpid()),
 	}
 
-	if err := p.readHeader(); err != nil {
-		return nil, err
-	}
-
 	return p, nil
 }
 
-func (p *Pager) assertSharedLocked() error {
-	if p.currentLock == LockTypeShared {
+// assertSharedWithMutex will acquire a shared lock on the DB file, if not currently held.
+//
+// Must be called with the pager mutex held.
+func (p *Pager) assertSharedWithMutex() error {
+	// If we already hold a shared lock, return early.
+	if p.currentLock >= LockTypeShared {
 		return nil
 	}
 
-	// Acquire the shared lock:
+	// Otherwise, acquire the shared lock:
 	if err := p.lock(LockTypeShared); err != nil {
 		return err
 	}
 
-	// Now that we have a new shared lock, re-read the header in case it changed:
+	// Since we had to acquire the lock, then another writer may have changed
+	// the DB since we last held a shared lock. We can check by reloading the header:
 	oldHeader := p.header
 	if err := p.readHeader(); err != nil {
 		return err
 	}
 
-	if oldHeader.SchemaCookieNumber != p.header.SchemaCookieNumber {
-		// TODO: reset the cache
+	if oldHeader != nil {
+		// If the schema cookie number has changed, then a writer operation has occurred
+		// since we last held a shared lock. In that case, we need to invalidate the cache.
+		if oldHeader.SchemaCookieNumber != p.header.SchemaCookieNumber {
+			// TODO: reset the cache
+		}
 	}
 
 	return nil
 }
 
+// TODO: calling Header() then exiting will have not unlocked
 func (p *Pager) Header() (SQLiteHeader, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if err := p.assertSharedLocked(); err != nil {
+	return p.headerWithMutex()
+}
+
+func (p *Pager) headerWithMutex() (SQLiteHeader, error) {
+	// In order to read the header, we need to hold the shared lock for concurrency
+	// control. If we didn't hold it when we read the header, then we wouldn't
+	// be able to guarantee that another writer isn't currently overwriting the
+	// header.
+	//
+	// If we had to acquire the shared lock in order to read the header, then we'll
+	// immediately release it at the end of this call.
+	//
+	// In acquiring the shared lock, this method will refresh p.header if needed.
+	if err := p.assertSharedWithMutex(); err != nil {
 		return SQLiteHeader{}, err
 	}
 
-	return p.header, nil
+	if p.refCount == 0 {
+		if err := p.unlock(LockTypeNoLock); err != nil {
+			return SQLiteHeader{}, err
+		}
+	}
+
+	return *p.header, nil
 }
 
 // Get returns the contents of the DB page at the provided index, using 1-indexing
@@ -99,7 +124,7 @@ func (p *Pager) Get(n int) (Page, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	if err := p.assertSharedLocked(); err != nil {
+	if err := p.assertSharedWithMutex(); err != nil {
 		return Page{}, err
 	}
 
@@ -125,6 +150,10 @@ func (p *Pager) ReleasePage() error {
 
 	p.refCount--
 
+	if p.refCount < 0 {
+		return fmt.Errorf("too many pages released")
+	}
+
 	// If all pages have been released, then we can unlock the file.
 	if p.refCount == 0 {
 		if err := p.unlock(LockTypeNoLock); err != nil {
@@ -139,9 +168,15 @@ func (p *Pager) Close() error {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// Verify we've released all pages, which indicates that we do not hold any locks.
+	// Verify we've released all pages, otherwise there are pages we are not releasing
+	// which means we aren't releasing the shared lock when we can.
 	if p.refCount > 0 {
 		return fmt.Errorf("pager closed with non-zero refCount (%d)", p.refCount)
+	}
+
+	// By the time the Pager is closed, all pages should have been released.
+	if p.currentLock != LockTypeNoLock {
+		return fmt.Errorf("pager closed but is still locked (refCount=%d)", p.refCount)
 	}
 
 	return p.file.Close()

@@ -15,6 +15,9 @@ import (
 )
 
 func main() {
+	// TODO: make configurable with a flag
+	events.DefaultLogger.EnableDebug = true
+
 	cli.Exec(cli.CommandSet{
 		"printHeader": cli.Command(printHeader),
 		// "lockStats":   cli.Command(lockStats),

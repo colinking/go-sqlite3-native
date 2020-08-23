@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"io"
 	"syscall"
+
+	"github.com/pkg/errors"
 )
 
 // LockPendingByte is the first byte of the lock-byte page. If a write lock
@@ -39,9 +41,8 @@ func (p *Pager) lock(requestedType LockType) (err error) {
 	// TODO: confirm whether we need OS-specific implementations of lock commands
 	// TODO: do we want to wait? see SETLKW instead of SETLK
 
-	// If we already have this lock, or a stricter lock, then return early.
 	if p.currentLock >= requestedType {
-		return nil
+		return errors.New("attempting to acquire lock that we already hold")
 	}
 
 	switch requestedType {
@@ -103,7 +104,7 @@ func (p *Pager) lock(requestedType LockType) (err error) {
 func (p *Pager) unlock(requestedType LockType) (err error) {
 	// If we already have this type, or less strict, then return early.
 	if p.currentLock <= requestedType {
-		return nil
+		return errors.New("attempting to unlock a lock we have already released")
 	}
 
 	switch requestedType {

@@ -4,41 +4,38 @@ import (
 	"fmt"
 
 	"github.com/colinking/go-sqlite3-native/internal/tree"
+	"github.com/segmentio/events/v2"
 )
 
 const TupleBufferSize = 100
 
 type VM struct {
-	tree *tree.Tree
+	tm *tree.TreeManager
 }
 
-func NewVM(tree *tree.Tree) *VM {
+func NewVM(tm *tree.TreeManager) *VM {
 	return &VM{
-		tree: tree,
+		tm: tm,
 	}
 }
 
 func (m *VM) Close() error {
-	return m.tree.Close()
+	return m.tm.Close()
 }
 
 type Execution struct {
 	program Program
-	tree    *tree.Tree
-	results chan *Tuple
+	tm      *tree.TreeManager
+	results chan []tree.Column
 	done    chan error
-}
-
-type Tuple struct {
-	// TODO
 }
 
 func (m *VM) Execute(program Program) *Execution {
 	e := &Execution{
 		program: program,
 
-		tree:    m.tree,
-		results: make(chan *Tuple, TupleBufferSize),
+		tm:      m.tm,
+		results: make(chan []tree.Column, TupleBufferSize),
 		done:    make(chan error),
 	}
 
@@ -50,8 +47,11 @@ func (m *VM) Execute(program Program) *Execution {
 }
 
 func (e *Execution) run() {
-	// TODO: array of open tree cursors
-	// TODO: array of memory locations, referenced by the program
+	activeTreeIndex := -1
+	trees := []*tree.Tree{}
+	row := []tree.Column{}
+
+	events.Debug("Executing program:\n%s", e.program)
 
 	for pc := 0; pc < len(e.program.Instructions); pc++ {
 		inst := e.program.Instructions[pc]
@@ -66,8 +66,10 @@ func (e *Execution) run() {
 		case OpcodeHalt: // https://www.sqlite.org/opcode.html#Halt
 			pc = len(e.program.Instructions)
 		case OpcodeTransaction: // https://www.sqlite.org/opcode.html#Transaction
+			// TODO: issue a Begin query to the pager to acquire the read lock
+
 			// Start a read transaction by looking up the header:
-			header, err := e.tree.Header()
+			header, err := e.tm.Header()
 			if err != nil {
 				e.done <- err
 				return
@@ -82,8 +84,7 @@ func (e *Execution) run() {
 					return
 				}
 
-				// NOTE: there's some kind of "schema generation counter" to validate here that
-				// is not well-defined.
+				// TODO: there's some kind of "schema generation counter" to validate here that is not well-defined.
 			}
 		case OpcodeGoto: // https://www.sqlite.org/opcode.html#Goto
 			pc = inst.P2
@@ -97,15 +98,59 @@ func (e *Execution) run() {
 				return
 			}
 
-			// cursorID := inst.P1
-			// rootPageNumber := inst.P2
+			cursorID := inst.P1
+			rootPageNumber := inst.P2
 			// numColumns := inst.P4
 
-			// TODO: open cursor with the tree module
-			e.done <- fmt.Errorf("todo tree module")
-			return
+			t, err := e.tm.Open(rootPageNumber)
+			if err != nil {
+				e.done <- err
+				return
+			}
 
-		// TODO: other opcodes
+			if cursorID < cap(trees) {
+				trees[cursorID] = t
+			} else if cursorID == cap(trees) {
+				trees = append(trees, t)
+			} else {
+				e.done <- fmt.Errorf("failed to insert tree (len=%d cap=%d cursorID=%d)", len(trees), cap(trees), cursorID)
+				return
+			}
+
+			// TODO: assert the opened b-tree has numColumns
+
+		case OpcodeRewind: // https://www.sqlite.org/opcode.html#Rewind
+			treeIdx := inst.P1
+			activeTreeIndex = treeIdx // signal which tree to use, to the next call to Column/etc.
+			tree := trees[treeIdx]
+			tree.ResetCursor()
+
+			if !tree.Next() {
+				// If there are _no_ more rows to read, skip to:
+				pc = inst.P2
+				pc-- // negate pc++
+			}
+
+		case OpcodeColumn: // https://www.sqlite.org/opcode.html#Column
+			tree := trees[activeTreeIndex]
+			columnIdx := inst.P2
+			column := tree.Get().GetColumn(columnIdx)
+			row = append(row, column)
+
+		case OpcodeResultRow: // https://www.sqlite.org/opcode.html#ResultRow
+			e.results <- row
+			// Reset the row
+			row = []tree.Column{}
+
+		case OpcodeNext: // https://www.sqlite.org/opcode.html#Next
+			cursorID := inst.P1
+			tree := trees[cursorID]
+			if tree.Next() {
+				// If there are _more_ rows to read, skip to:
+				pc = inst.P2
+				pc-- // negate pc++
+			}
+
 		default:
 			e.done <- fmt.Errorf("unknown opcode! %+v", inst)
 			return
@@ -119,12 +164,12 @@ func (e *Execution) run() {
 //
 // If a nil error and nil tuple are returned, that means that all rows have been
 // read successfully. A non-nil error indicates an error while executing the bytecode.
-func (e *Execution) Next() (*Tuple, error) {
+func (e *Execution) Next() (*[]tree.Column, error) {
 	select {
 	case err := <-e.done:
 		return nil, err
 	case t := <-e.results:
-		return t, nil
+		return &t, nil
 	}
 }
 
