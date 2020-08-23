@@ -25,9 +25,9 @@ func init() {
 func TestDriverE2E(tt *testing.T) {
 	for _, test := range []struct {
 		name    string
-		setup   string         // sql to run on the DB via sqlite3
-		sql     string         // sql to run
-		results []driver.Value // expected results
+		setup   string           // sql to run on the DB via sqlite3
+		sql     string           // sql to run
+		results [][]driver.Value // expected results
 	}{
 		{
 			name: "simple multi-row integer select all",
@@ -37,8 +37,11 @@ func TestDriverE2E(tt *testing.T) {
 				INSERT INTO table1 (column1) VALUES (123);
 				INSERT INTO table1 (column1) VALUES (456);
 			`,
-			sql:     "select * from table1;",
-			results: []driver.Value{123, 456},
+			sql: "select * from table1;",
+			results: [][]driver.Value{
+				{int64(123)},
+				{int64(456)},
+			},
 		},
 	} {
 		tt.Run(test.name, func(t *testing.T) {
@@ -77,18 +80,20 @@ func TestDriverE2E(tt *testing.T) {
 			require.NoError(err)
 
 			// Verify we got the expected results.
-			// To scan in an arbitrary length of items, we need to do some
-			// pointer juggling:
 			cols, err := rows.Columns()
 			require.NoError(err)
-			results := make([]driver.Value, len(cols))
-			ptrs := make([]interface{}, len(cols))
-			for i := range cols {
-				ptrs[i] = &results[i]
-			}
+			results := [][]driver.Value{}
 			for rows.Next() {
+				// To scan in an arbitrary length of items, we need to do some
+				// pointer juggling:
+				row := make([]driver.Value, len(cols))
+				ptrs := make([]interface{}, len(cols))
+				for i := range cols {
+					ptrs[i] = &row[i]
+				}
 				err := rows.Scan(ptrs...)
 				require.NoError(err)
+				results = append(results, row)
 			}
 			require.NoError(rows.Err())
 			require.Equal(test.results, results)

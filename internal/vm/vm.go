@@ -7,7 +7,9 @@ import (
 	"github.com/segmentio/events/v2"
 )
 
-const TupleBufferSize = 100
+const (
+	BufferSize = 100
+)
 
 type VM struct {
 	tm *tree.TreeManager
@@ -35,7 +37,7 @@ func (m *VM) Execute(program Program) *Execution {
 		program: program,
 
 		tm:      m.tm,
-		results: make(chan []tree.Column, TupleBufferSize),
+		results: make(chan []tree.Column, BufferSize),
 		done:    make(chan error),
 	}
 
@@ -138,7 +140,9 @@ func (e *Execution) run() {
 			row = append(row, column)
 
 		case OpcodeResultRow: // https://www.sqlite.org/opcode.html#ResultRow
+			events.Debug("result row: %+v", row)
 			e.results <- row
+
 			// Reset the row
 			row = []tree.Column{}
 
@@ -166,10 +170,10 @@ func (e *Execution) run() {
 // read successfully. A non-nil error indicates an error while executing the bytecode.
 func (e *Execution) Next() (*[]tree.Column, error) {
 	select {
-	case err := <-e.done:
-		return nil, err
 	case t := <-e.results:
 		return &t, nil
+	case err := <-e.done:
+		return nil, err
 	}
 }
 

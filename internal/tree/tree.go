@@ -340,9 +340,7 @@ func newNode(pageNumber int, pgr *pager.Pager, parent *node) (n *node, err error
 		// read the cell pointer
 		cellOffset := int(binary.BigEndian.Uint16(page[offset : offset+2]))
 		offset += 2
-		// cellOffset := contentOffset + ptr
 
-		events.Debug("cell (ptr offset = %d, ptr = %d)", offset, cellOffset)
 		switch typ {
 		case TreeTypeTableInterior:
 			// A 4-byte big-endian page number which is the left child pointer.

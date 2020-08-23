@@ -5,6 +5,7 @@ import (
 	"io"
 
 	"github.com/colinking/go-sqlite3-native/internal/vm"
+	"github.com/segmentio/events/v2"
 )
 
 type Rows struct {
@@ -20,6 +21,7 @@ func (r *Rows) Columns() []string {
 
 func (r *Rows) Next(dest []driver.Value) error {
 	t, err := r.execution.Next()
+	events.Debug("received row: %+v %+v", t, err)
 	if err != nil {
 		return err
 	}
