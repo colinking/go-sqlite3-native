@@ -1,8 +1,6 @@
 package main
 
 import (
-	"context"
-	"database/sql"
 	_ "net/http/pprof"
 
 	_ "github.com/colinking/go-sqlite3-native"
@@ -18,10 +16,13 @@ func main() {
 	// TODO: make configurable with a flag
 	events.DefaultLogger.EnableDebug = true
 
+	// These commands are used for debugging the Go client on a SQLite DB.
 	cli.Exec(cli.CommandSet{
 		"printHeader": cli.Command(printHeader),
 		// "lockStats":   cli.Command(lockStats),
-		"query": cli.Command(query),
+		// TODO: generate trees as a graph
+		// TODO: pretty print bytecode
+		// TODO: generate parse tree as a graph
 	})
 }
 
@@ -69,30 +70,3 @@ func printHeader(_ struct{}, path string) (int, error) {
 
 // 	return 0, nil
 // }
-
-// query does a sample query on the DB
-func query(_ struct{}, path string) (int, error) {
-	db, err := sql.Open("sqlite3-native", path)
-	if err != nil {
-		return 1, err
-	}
-	defer db.Close()
-
-	rows, err := db.QueryContext(context.Background(), `SELECT * FROM table1`)
-	if err != nil {
-		return 1, err
-	}
-
-	for rows.Next() {
-		var column1 int
-		if err := rows.Scan(&column1); err != nil {
-			return 1, err
-		}
-		events.Log("column1: %d", column1)
-	}
-	if err := rows.Err(); err != nil {
-		return 1, err
-	}
-
-	return 0, nil
-}
