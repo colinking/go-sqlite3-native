@@ -1,5 +1,6 @@
-
 Q=@
+
+all: lint test
 
 build-dbs:
 	$Q echo "sqlite3 version: $$(sqlite3 --version)"
@@ -24,3 +25,14 @@ gen:
 
 tmp/stage.db:
 	$Qaws-okta exec stage-admin -- aws s3 cp s3://segment-ctlstore-snapshots-stage/snapshot.db.gz - | gzip --decompress > ./tmp/stage.db
+
+# To install golangci-lint:
+#   brew install golangci/tap/golangci-lint
+#   brew upgrade golangci/tap/golangci-lint
+lint:
+	$Q golangci-lint run ./...
+.PHONY: lint
+
+test:
+	$Q go test -race -v -count=1 ./...
+.PHONY: test

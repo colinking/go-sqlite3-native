@@ -22,6 +22,10 @@ jobs:
         key: ${{ runner.os }}-go-${{ hashFiles('**/go.sum') }}
         restore-keys: |
           ${{ runner.os }}-go-
+    - name: SQLite Version
+      run: |
+        which sqlite3
+        sqlite3 --version
     - name: Test
       run: go test -v -race ./...
     - name: Test (Flakiness)
