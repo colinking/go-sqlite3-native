@@ -22,6 +22,8 @@ github.com/segmentio/encoding v0.1.11 h1:Qy9+DK2pmQnF6KjD5IclHekzfZFN+pZrHWyUbE2
 github.com/segmentio/encoding v0.1.11/go.mod h1:RWhr02uzMB9gQC1x+MfYxedtmBibb9cZ6Vv9VxRSSbw=
 github.com/segmentio/events/v2 v2.4.0 h1:8XZA/OlHFBLDIKtHwn6riWjCq8etZr8kBu2rx2DvFgM=
 github.com/segmentio/events/v2 v2.4.0/go.mod h1:pj4K4ln5dpEa4grVeDLvnDyw+m7AO2lBbRjRPVNcPjo=
+github.com/segmentio/textio v1.2.0 h1:Ug4IkV3kh72juJbG8azoSBlgebIbUUxVNrfFcKHfTSQ=
+github.com/segmentio/textio v1.2.0/go.mod h1:+Rb7v0YVODP+tK5F7FD9TCkV7gOYx9IgLHWiqtvY8ag=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/testify v1.6.1 h1:hDPOHmpOpP40lSULcqw7IrRb/u7w6RpDC9399XyoNd0=
 github.com/stretchr/testify v1.6.1/go.mod h1:6Fq8oRcR53rry900zMqJjRRixrwX3KX962/h/Wwjteg=

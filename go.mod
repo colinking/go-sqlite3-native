@@ -10,6 +10,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/segmentio/cli v0.3.4
 	github.com/segmentio/events/v2 v2.4.0
+	github.com/segmentio/textio v1.2.0
 	github.com/stretchr/testify v1.6.1
 	golang.org/x/sys v0.0.0-20200323222414-85ca7c5b95cd // indirect
 	gopkg.in/check.v1 v1.0.0-20190902080502-41f04d3bba15 // indirect

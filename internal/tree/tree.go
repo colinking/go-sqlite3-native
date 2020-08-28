@@ -1,15 +1,19 @@
 package tree
 
 import (
+	"bytes"
 	"database/sql/driver"
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"io"
 	"math"
+	"strings"
 
 	"github.com/colinking/go-sqlite3-native/internal/pager"
 	"github.com/mohae/uvarint"
 	"github.com/segmentio/events/v2"
+	"github.com/segmentio/textio"
 )
 
 type TreeManager struct {
@@ -48,12 +52,38 @@ func (tm *TreeManager) Close() error {
 // For more information on the file format that backs this tree, see:
 // https://www.sqlite.org/fileformat2.html#b_tree_pages
 type Tree struct {
-	pager *pager.Pager
-	root  *node
+	pager          *pager.Pager
+	rootPageNumber int
+	root           *node
 
 	// cursor location
 	cursor      *node
 	cursorStack []int
+}
+
+func (t *Tree) String() string {
+	var buf bytes.Buffer
+	tw := textio.NewTreeWriter(&buf)
+	tw.WriteString(fmt.Sprintf("Page %d (%s)", t.rootPageNumber, t.root.typ.String()))
+
+	for _, record := range t.root.records {
+		var row []string
+		for _, c := range record.columns {
+			i := c.Value()
+			switch v := i.(type) {
+			case []byte:
+				row = append(row, string(v))
+			case string:
+				row = append(row, v)
+			}
+		}
+		s := fmt.Sprintf("rowid=%d row=[ %s ]", record.key, strings.Join(row, " | "))
+		io.WriteString(textio.NewTreeWriter(tw), s)
+	}
+
+	tw.Close()
+
+	return buf.String()
 }
 
 func newTree(rootPageNumber int, pgr *pager.Pager) (*Tree, error) {
@@ -65,8 +95,9 @@ func newTree(rootPageNumber int, pgr *pager.Pager) (*Tree, error) {
 	events.Debug("root node (tree=%d): %+v", rootPageNumber, root)
 
 	t := &Tree{
-		pager: pgr,
-		root:  root,
+		pager:          pgr,
+		rootPageNumber: rootPageNumber,
+		root:           root,
 	}
 	t.ResetCursor()
 

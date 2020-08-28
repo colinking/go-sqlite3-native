@@ -39,7 +39,6 @@ const (
 // TODO: this is not safe to use across threads because of the way POSIX locks are implemented.
 func (p *Pager) lock(requestedType LockType) (err error) {
 	// TODO: confirm whether we need OS-specific implementations of lock commands
-	// TODO: do we want to wait? see SETLKW instead of SETLK
 
 	if p.currentLock >= requestedType {
 		return errors.New("attempting to acquire lock that we already hold")
@@ -58,6 +57,7 @@ func (p *Pager) lock(requestedType LockType) (err error) {
 		// step in acquiring a non-shared locks.
 
 		// #1
+		// TODO: are these the wrong kind of locks? (flock instead of posix)
 		if err := syscall.FcntlFlock(p.fd, syscall.F_SETLK, &syscall.Flock_t{
 			Len:    1,
 			Start:  LockPendingByte,

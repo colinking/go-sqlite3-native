@@ -75,8 +75,12 @@ func TestDriverE2E(tt *testing.T) {
 				require.NoError(db.Close())
 			}()
 
+			// Prepare the test SQL command
+			stmt, err := db.PrepareContext(context.Background(), test.sql)
+			require.NoError(err)
+
 			// Run the test SQL command:
-			rows, err := db.QueryContext(context.Background(), test.sql)
+			rows, err := stmt.QueryContext(context.Background())
 			require.NoError(err)
 
 			// Verify we got the expected results.

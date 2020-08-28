@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"strings"
 
 	"github.com/pkg/errors"
 )
@@ -164,4 +165,53 @@ func (p *Pager) readHeader() error {
 	p.header = &header
 
 	return nil
+}
+
+func (h SQLiteHeader) String() string {
+	return fmt.Sprintf(strings.TrimSpace(`
+Magic String:                      SQLite format 3
+Page Size (bytes):                 %-20d
+File Format (write):               %-20d # 2 = WAL, 1 = Rollback
+File Format (read):                %-20d # 2 = WAL, 1 = Rollback
+End of Page Reservation (bytes):   %-20d
+Max Embedded Payload (%%):          %-20d
+Min Embedded Payload (%%):          %-20d
+Min Leaf Payload (%%):              %-20d
+File Change Counter (FCC):         %-20d
+Database Size (pages):             %-20d
+Freelist First Page (page no):     %-20d
+Freelist Size (pages):             %-20d
+Schema Cookie Number:              %-20d
+Schema Format Number:              %-20d
+Suggested Page Cache Size (bytes): %-20d # Deprecated!
+Vacuuming Next Tree (page no):     %-20d
+Text Encoding:                     %-20d # 1 = UTF-8
+User Version:                      %-20d
+Incremental Vacuuming Enabled:     %-20d
+Application ID:                    %-20d
+Version Valid For FCC:             %-20d
+SQLite Last Write Version:         %-20d
+	`),
+		h.PageSizeBytes,
+		h.FileFormatWriteVersion,
+		h.FileFormatReadVersion,
+		h.EndOfPageByteReservation,
+		h.EmbeddedPayloadFractionMax,
+		h.EmbeddedPayloadFractionMin,
+		h.LeafPayloadFractionMin,
+		h.FileChangeCounter,
+		h.DatabaseSizePages,
+		h.FreelistFirstPageIndex,
+		h.FreelistNumPages,
+		h.SchemaCookieNumber,
+		h.SchemaFormatNumber,
+		h.DefaultPageCacheSize,
+		h.VacuumLargestRootTreePage,
+		h.TextEncoding,
+		h.UserVersion,
+		h.IncrementalVacuumEnabled,
+		h.ApplicationID,
+		h.VersionValidFor,
+		h.SQLiteVersionNumber,
+	)
 }
