@@ -18,8 +18,10 @@ import (
 )
 
 func init() {
-	// TODO: events/v2 isTerminal doesn't work well during tests
-	events.DefaultHandler = text.NewHandler(text.DefaultPrefix, os.Stdout)
+	// Note: we disable the prefix here for tests, to reduce events's verbosity
+	events.DefaultHandler = &text.Handler{
+		Output: os.Stdout,
+	}
 }
 
 func TestDriverE2E(tt *testing.T) {
@@ -66,7 +68,7 @@ func TestDriverE2E(tt *testing.T) {
 			cmd := exec.Command("bash", "-c", sh)
 			stdout, err := cmd.Output()
 			require.NoError(err)
-			events.Log("%s\nstdout: %s\nstderr: %s", sh, stdout)
+			events.Log("%s\nstdout: %s", sh, stdout)
 
 			// Open this SQLite DB with our Go client:
 			db, err := sql.Open("sqlite3-native", dbPath)

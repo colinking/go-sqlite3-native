@@ -38,7 +38,7 @@ func (m *VM) Execute(program Program) *Execution {
 
 		tm:      m.tm,
 		results: make(chan []tree.Column, BufferSize),
-		done:    make(chan error),
+		done:    make(chan error, 1),
 	}
 
 	// A VM program is executed in a separate goroutine where results are
@@ -173,7 +173,20 @@ func (e *Execution) Next() (*[]tree.Column, error) {
 	case t := <-e.results:
 		return &t, nil
 	case err := <-e.done:
-		return nil, err
+		// If we call Next() when both e.results and e.done are ready, then we'll receive
+		// a result at random. We want to guarantee that if both are ready, we always prioritize
+		// receiving from e.results. To do that, if we get a result from e.done we do a non-blocking
+		// receive on e.results to see if it was ready to. If so, then we return that instead.
+		select {
+		case t := <-e.results:
+			// Place the result we got from e.done back into its channel so a future Next() call
+			// will receive it:
+			e.done <- err
+
+			return &t, nil
+		default:
+			return nil, err
+		}
 	}
 }
 
