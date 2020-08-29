@@ -80,10 +80,16 @@ func TestDriverE2E(tt *testing.T) {
 			// Prepare the test SQL command
 			stmt, err := db.PrepareContext(context.Background(), test.sql)
 			require.NoError(err)
+			defer func() {
+				require.NoError(stmt.Close())
+			}()
 
 			// Run the test SQL command:
 			rows, err := stmt.QueryContext(context.Background())
 			require.NoError(err)
+			defer func() {
+				require.NoError(rows.Close())
+			}()
 
 			// Verify we got the expected results.
 			cols, err := rows.Columns()

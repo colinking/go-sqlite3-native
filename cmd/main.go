@@ -1,8 +1,14 @@
 package main
 
 import (
+	"errors"
 	"fmt"
 	_ "net/http/pprof"
+	"strings"
+	"time"
+
+	"database/sql"
+	"database/sql/driver"
 
 	_ "github.com/colinking/go-sqlite3-native"
 	"github.com/colinking/go-sqlite3-native/internal/pager"
@@ -22,6 +28,7 @@ func main() {
 	cli.Exec(cli.CommandSet{
 		"printHeader": cli.Command(printHeader),
 		"printTree":   cli.Command(printTree),
+		"query":       cli.Command(query),
 		// "lockStats":   cli.Command(lockStats),
 		// TODO: generate trees as a graph
 		// TODO: pretty print bytecode
@@ -72,6 +79,84 @@ func printTree(_ struct{}, path string) (int, error) {
 	}
 
 	fmt.Printf("%+v\n", t)
+
+	return 0, nil
+}
+
+// Executes a query on a given DB.
+func query(_ struct{}, path, query string) (int, error) {
+	db, err := sql.Open("sqlite3-native", path)
+	if err != nil {
+		return 1, err
+	}
+	defer func() {
+		if err := db.Close(); err != nil {
+			events.Log("failed to close db: %+v", err)
+		}
+	}()
+
+	stmt, err := db.Prepare(query)
+	if err != nil {
+		return 1, err
+	}
+	defer func() {
+		if err := stmt.Close(); err != nil {
+			events.Log("failed to close stmt: %+v", err)
+		}
+	}()
+
+	rows, err := stmt.Query()
+	if err != nil {
+		return 1, err
+	}
+	defer func() {
+		if err := rows.Close(); err != nil {
+			events.Log("failed to close rows: %+v", err)
+		}
+	}()
+
+	cols, err := rows.Columns()
+	if err != nil {
+		return 1, err
+	}
+	fmt.Printf("%s\n", strings.Join(cols, "|"))
+	for rows.Next() {
+		// To scan in an arbitrary length of items, we need to do some
+		// pointer juggling:
+		row := make([]driver.Value, len(cols))
+		ptrs := make([]interface{}, len(cols))
+		for i := range cols {
+			ptrs[i] = &row[i]
+		}
+		err := rows.Scan(ptrs...)
+		if err != nil {
+			return 1, err
+		}
+
+		var content []string
+		for _, col := range row {
+			var s string
+			switch c := col.(type) {
+			case string:
+				s = c
+			case []byte:
+				s = string(c)
+			case float64:
+				s = fmt.Sprintf("%f", c)
+			case int64:
+				s = fmt.Sprintf("%d", c)
+			case time.Time:
+				s = c.String()
+			case bool:
+				s = fmt.Sprintf("%v", c)
+			default:
+				return 1, errors.New("unknown column type")
+			}
+			content = append(content, s)
+		}
+
+		fmt.Printf("%s\n", strings.Join(content, "|"))
+	}
 
 	return 0, nil
 }
