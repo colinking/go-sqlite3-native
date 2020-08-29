@@ -158,6 +158,10 @@ func query(_ struct{}, path, query string) (int, error) {
 		fmt.Printf("%s\n", strings.Join(content, "|"))
 	}
 
+	if err := rows.Err(); err != nil {
+		return 1, err
+	}
+
 	return 0, nil
 }
 
