@@ -77,7 +77,7 @@ func (c Column) String() string {
 	case string:
 		return vt
 	case []byte:
-		return string(vt)
+		return "\"" + string(vt) + "\""
 	case float64:
 		return fmt.Sprintf("%f", vt)
 	case int64:
@@ -86,6 +86,8 @@ func (c Column) String() string {
 		return vt.String()
 	case bool:
 		return fmt.Sprintf("%v", vt)
+	case nil:
+		return "nil"
 	default:
 		return fmt.Sprintf("<unknown column type = %s>", reflect.TypeOf(v))
 	}
