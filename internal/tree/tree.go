@@ -2,7 +2,6 @@ package tree
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 
 	"github.com/colinking/go-sqlite3-native/internal/pager"
@@ -39,7 +38,10 @@ type Tree struct {
 func (t *Tree) String() string {
 	var buf bytes.Buffer
 
-	err := t.nodeString(&buf, t.rootPageNumber, t.root)
+	err := t.nodeString(&buf, &child{
+		pageNumber: t.rootPageNumber,
+		node:       t.root,
+	})
 	if err != nil {
 		t.setError(err)
 
@@ -49,31 +51,31 @@ func (t *Tree) String() string {
 	return buf.String()
 }
 
-func (t *Tree) nodeString(w io.Writer, pageNumber int, node *node) error {
+func (t *Tree) nodeString(w io.Writer, n *child) error {
 	tw := textio.NewTreeWriter(w)
 	defer tw.Close()
 
-	_, err := tw.WriteString(fmt.Sprintf("Page %d (%s)", pageNumber, node.typ.String()))
+	_, err := tw.WriteString(n.String())
 	if err != nil {
 		return err
 	}
 
-	for _, record := range node.records {
+	for _, record := range n.node.records {
 		_, err := io.WriteString(textio.NewTreeWriter(tw), record.String())
 		if err != nil {
 			return err
 		}
 	}
 
-	for _, chld := range node.children {
+	for _, chld := range n.node.children {
 		if chld.node == nil {
 			// We lazy-load children pages until we need them:
-			chld.node, err = newNode(chld.pageNumber, t.pager, node)
+			chld.node, err = newNode(chld.pageNumber, t.pager, n.node)
 			if err != nil {
 				return err
 			}
 		}
-		err := t.nodeString(textio.NewTreeWriter(tw), chld.pageNumber, chld.node)
+		err := t.nodeString(textio.NewTreeWriter(tw), chld)
 		if err != nil {
 			return err
 		}
@@ -180,6 +182,29 @@ func (t *Tree) Next() bool {
 			}
 		}
 	}
+}
+
+func (t *Tree) SeekGE(key []byte) error {
+	// TODO: binary search to more efficiently search through children
+
+	// for {
+	// for idx, chld := range t.cursor.children {
+	// All children in chld.node are < chld.key
+	//
+	// chld.key
+	// if t.cursor.children[idx].node == nil {
+	// 	// We lazy-load children pages until we need them:
+	// 	node, err := newNode(t.cursor.children[idx].pageNumber, t.pager, t.cursor)
+	// 	if err != nil {
+	// 		return err
+	// 	}
+	// 	t.cursor.children[idx].node = node
+	// }
+	// }
+	// }
+
+	return nil
+	// t.cursor
 }
 
 // cursorStackPeek returns the last index in cursorStack

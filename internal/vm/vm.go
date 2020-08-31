@@ -192,8 +192,17 @@ func (e *Execution) run() {
 			}
 
 		case OpcodeSeekGE: // https://www.sqlite.org/opcode.html#SeekGE
-			e.done <- fmt.Errorf("todo: support SeekGe! %+v", inst)
-			return
+			cursorIdx := inst.P1
+			keyIdx := inst.P3
+			// TODO: nKeys := inst.P4
+
+			cursor := trees[cursorIdx]
+			key := registers.Get(keyIdx).Blob
+			err := cursor.SeekGE(key)
+			if err != nil {
+				e.done <- err
+				return
+			}
 
 		case OpcodeIdxGT: // https://www.sqlite.org/opcode.html#IdxGT
 			e.done <- fmt.Errorf("todo: support IdxGT! %+v", inst)

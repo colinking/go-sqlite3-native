@@ -35,13 +35,30 @@ type node struct {
 }
 
 type child struct {
-	key        []byte
+	keyInt     int
+	keyColumns []Column
 	pageNumber int
 	node       *node
 }
 
+func (c *child) String() string {
+	var key string
+	if c.keyColumns == nil {
+		key = fmt.Sprintf("%d", c.keyInt)
+	} else {
+		var row []string
+		for _, c := range c.keyColumns {
+			row = append(row, c.String())
+		}
+
+		key = "[" + strings.Join(row, "|") + "]"
+	}
+
+	return fmt.Sprintf("%s [page=%d, all<=%s]", c.node.typ.String(), c.pageNumber, key)
+}
+
 type Record struct {
-	key     []byte
+	rowid   int
 	columns []Column
 }
 
@@ -51,8 +68,7 @@ func (r Record) String() string {
 		row = append(row, c.String())
 	}
 
-	// TODO: parse key as varint
-	return fmt.Sprintf("key=%+v row=[ %s ]", r.key, strings.Join(row, " | "))
+	return fmt.Sprintf("rowid=%+v columns=[%s]", r.rowid, strings.Join(row, "|"))
 }
 
 func (r Record) GetColumn(idx int) Column {
@@ -91,6 +107,16 @@ func (c Column) String() string {
 	default:
 		return fmt.Sprintf("<unknown column type = %s>", reflect.TypeOf(v))
 	}
+}
+
+func (c Column) AsInt() (int, bool) {
+	// [1, 6] are the various int64 types
+	if c.typ >= 1 && c.typ <= 6 {
+		i64 := c.Value().(int64)
+		return int(i64), true
+	}
+
+	return 0, false
 }
 
 func (c Column) Value() driver.Value {
@@ -241,102 +267,78 @@ func newNode(pageNumber int, pgr *pager.Pager, parent *node) (n *node, err error
 		offset += 2
 	}
 
+	// read the cell contents
 	records := []Record{}
 	children := []*child{}
 	for _, ptr := range ptrs {
-		// read the cell contents
-		switch typ {
-		case TreeTypeTableInterior, TreeTypeIndexInterior:
+		var numBytesPayload int
+		var rowid int
+		var childPageNumber int
+		var columns []Column
+
+		// Left child pointer, if interior
+		if typ == TreeTypeTableInterior || typ == TreeTypeIndexInterior {
 			// A 4-byte big-endian page number which is the left child pointer.
-			childPageNumber := int(binary.BigEndian.Uint32(page[ptr : ptr+4]))
+			childPageNumber = int(binary.BigEndian.Uint32(page[ptr : ptr+4]))
 			ptr += 4
+		}
 
-			var key []byte
-			if typ == TreeTypeTableInterior {
-				// A varint which is the integer key
-				_, size := internal.Varint(page[ptr:])
-				// We ignore the varint value because we want to store the key as []byte
-				cpy := make([]byte, size)
-				copy(cpy, page[ptr:ptr+size])
-				key = cpy
-			} else {
-				var keySizeBytes int
-				ptr += internal.PutVarint(page[ptr:], &keySizeBytes)
-				// TODO: support overflowing index keys
-				cpy := make([]byte, keySizeBytes)
-				copy(cpy, page[ptr:ptr+keySizeBytes])
-				key = cpy
-			}
-
-			children = append(children, &child{
-				pageNumber: childPageNumber,
-				key:        key,
-			})
-		case TreeTypeTableLeaf, TreeTypeIndexLeaf:
+		// Number of data bytes, if not zerodata
+		if typ != TreeTypeTableInterior {
 			// A varint which is the total number of bytes of payload, including any overflow
-			var numPayloadBytes int
-			ptr += internal.PutVarint(page[ptr:], &numPayloadBytes)
+			ptr += internal.PutVarint(page[ptr:], &numBytesPayload)
+		}
 
-			var key []byte
-			if typ == TreeTypeTableLeaf {
-				// A varint which is the integer key, a.k.a. "rowid"
-				_, size := internal.Varint(page[ptr:])
-				cpy := make([]byte, size)
-				copy(cpy, page[ptr:ptr+size])
-				key = cpy
-				ptr += size
-			}
+		// Integer key itself if intkey
+		if typ == TreeTypeTableInterior || typ == TreeTypeTableLeaf {
+			// A varint which is the integer key.
+			ptr += internal.PutVarint(page[ptr:], &rowid)
+		}
 
+		// Record Payload
+		if typ != TreeTypeTableInterior {
 			// The initial portion of the payload that does not spill to overflow pages.
-			// TODO: support overflowing using the U/M/P/X calculations:
-			//     U = 4096
-			//     P = ?
-			//     X = U-35 = 4096 - 35 = 4061
-			//     M = ((U-12)*32/255)-23 = ((4096-12)*32/255)-23 = 489.5
-			//     K = M+((P-M)%(U-4)) = 489.5+((P-489.5)%(4092))
-			//     if P <= X: no overflow
-			//     elif P > X and K <= X: store K bytes on page, remaining overflows
-			//     else: store first M bytes, remaining overflows
-			end := ptr + int(numPayloadBytes)
-			content := page[ptr:end]
-
-			// read columns using the SQLite record format
-			// https://www.sqlite.org/fileformat2.html#record_format
-			contentOffset := 0
-
-			var headerSize int
-			contentOffset += internal.PutVarint(content[contentOffset:], &headerSize)
-			columnTypes := []int{}
-			for contentOffset < int(headerSize) {
-				var serialType int
-				contentOffset += internal.PutVarint(content[contentOffset:], &serialType)
-				columnTypes = append(columnTypes, int(serialType))
-			}
-			if contentOffset > int(headerSize) {
-				return nil, fmt.Errorf("consumed more header than expected! (%d>%d)", contentOffset, int(headerSize))
-			}
-			columns := make([]Column, 0, len(columnTypes))
-			for _, typ := range columnTypes {
-				size := columnContentSize(typ)
-				columns = append(columns, Column{
-					typ:     typ,
-					content: content[contentOffset : contentOffset+size],
-				})
-				contentOffset += size
-
-				// TODO: support ALTER COLUMN ADD COLUMN where we should use default values here
+			// TODO: support overflowing payloads.
+			columns, err = readColumns(page[ptr : ptr+numBytesPayload])
+			if err != nil {
+				return nil, err
 			}
 
-			if contentOffset != int(numPayloadBytes) {
-				return nil, fmt.Errorf("did not consume all bytes in record (%d!=%d)", contentOffset, numPayloadBytes)
-			}
+			if typ != TreeTypeTableLeaf {
+				// Extract the rowid from the last column:
+				idx := len(columns) - 1
+				var ok bool
+				rowid, ok = columns[idx].AsInt()
+				if !ok {
+					return nil, fmt.Errorf("expected final index column to be rowid: %+v", columns[idx])
+				}
 
+				// Trim the rowid column off:
+				columns = columns[:len(columns)-1]
+			}
+		}
+
+		switch typ {
+		case TreeTypeTableInterior:
+			children = append(children, &child{
+				keyInt:     rowid,
+				pageNumber: childPageNumber,
+			})
+		case TreeTypeTableLeaf:
 			records = append(records, Record{
-				key:     key,
+				rowid:   rowid,
 				columns: columns,
 			})
-		default:
-			return nil, fmt.Errorf("unsupported tree page type: %+v", typ)
+		case TreeTypeIndexInterior:
+			children = append(children, &child{
+				keyColumns: columns,
+				pageNumber: childPageNumber,
+			})
+		case TreeTypeIndexLeaf:
+			records = append(records, Record{
+				rowid:   rowid,
+				columns: columns,
+			})
 		}
 	}
 
@@ -361,6 +363,41 @@ func newNode(pageNumber int, pgr *pager.Pager, parent *node) (n *node, err error
 
 		parent: parent,
 	}, nil
+}
+
+func readColumns(content []byte) ([]Column, error) {
+	// read columns using the SQLite record format
+	// https://www.sqlite.org/fileformat2.html#record_format
+	contentOffset := 0
+
+	var headerSize int
+	contentOffset += internal.PutVarint(content[contentOffset:], &headerSize)
+	columnTypes := []int{}
+	for contentOffset < int(headerSize) {
+		var serialType int
+		contentOffset += internal.PutVarint(content[contentOffset:], &serialType)
+		columnTypes = append(columnTypes, int(serialType))
+	}
+	if contentOffset > int(headerSize) {
+		return nil, fmt.Errorf("consumed more header than expected! (%d>%d)", contentOffset, int(headerSize))
+	}
+	columns := make([]Column, 0, len(columnTypes))
+	for _, typ := range columnTypes {
+		size := columnContentSize(typ)
+		columns = append(columns, Column{
+			typ:     typ,
+			content: content[contentOffset : contentOffset+size],
+		})
+		contentOffset += size
+
+		// TODO: support ALTER COLUMN ADD COLUMN where we should use default values here
+	}
+
+	if contentOffset != len(content) {
+		return nil, fmt.Errorf("did not consume all bytes in record (%d!=%d)", contentOffset, len(content))
+	}
+
+	return columns, nil
 }
 
 func (n *node) Close() error {
