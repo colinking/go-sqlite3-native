@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"reflect"
+	"strings"
 	"time"
 
 	"github.com/colinking/go-sqlite3-native/internal"
@@ -34,14 +35,24 @@ type node struct {
 }
 
 type child struct {
-	key        int
+	key        []byte
 	pageNumber int
 	node       *node
 }
 
 type Record struct {
-	key     int
+	key     []byte
 	columns []Column
+}
+
+func (r Record) String() string {
+	var row []string
+	for _, c := range r.columns {
+		row = append(row, c.String())
+	}
+
+	// TODO: parse key as varint
+	return fmt.Sprintf("key=%+v row=[ %s ]", r.key, strings.Join(row, " | "))
 }
 
 func (r Record) GetColumn(idx int) Column {
@@ -233,24 +244,46 @@ func newNode(pageNumber int, pgr *pager.Pager, parent *node) (n *node, err error
 	for _, ptr := range ptrs {
 		// read the cell contents
 		switch typ {
-		case TreeTypeTableInterior:
+		case TreeTypeTableInterior, TreeTypeIndexInterior:
 			// A 4-byte big-endian page number which is the left child pointer.
 			childPageNumber := int(binary.BigEndian.Uint32(page[ptr : ptr+4]))
 			ptr += 4
-			// A varint which is the integer key
-			key, _ := internal.Varint(page[ptr:])
+
+			var key []byte
+			if typ == TreeTypeIndexInterior {
+				// A varint which is the integer key
+				_, size := internal.Varint(page[ptr:])
+				// We ignore the varint value because we want to store the key as []byte
+				cpy := make([]byte, size)
+				copy(cpy, page[ptr:ptr+size])
+				key = cpy
+			} else {
+				var keySizeBytes int
+				ptr += internal.PutVarint(page[ptr:], &keySizeBytes)
+				// TODO: support overflowing index keys
+				cpy := make([]byte, keySizeBytes)
+				copy(cpy, page[ptr:ptr+keySizeBytes])
+				key = cpy
+			}
+
 			children = append(children, &child{
 				pageNumber: childPageNumber,
 				key:        key,
 			})
-		case TreeTypeTableLeaf:
+		case TreeTypeTableLeaf, TreeTypeIndexLeaf:
 			// A varint which is the total number of bytes of payload, including any overflow
 			var numPayloadBytes int
 			ptr += internal.PutVarint(page[ptr:], &numPayloadBytes)
 
-			// A varint which is the integer key, a.k.a. "rowid"
-			var rowID int
-			ptr += internal.PutVarint(page[ptr:], &rowID)
+			var key []byte
+			if typ == TreeTypeTableLeaf {
+				// A varint which is the integer key, a.k.a. "rowid"
+				_, size := internal.Varint(page[ptr:])
+				cpy := make([]byte, size)
+				copy(cpy, page[ptr:ptr+size])
+				key = cpy
+				ptr += size
+			}
 
 			// The initial portion of the payload that does not spill to overflow pages.
 			// TODO: support overflowing using the U/M/P/X calculations:
@@ -297,7 +330,7 @@ func newNode(pageNumber int, pgr *pager.Pager, parent *node) (n *node, err error
 			}
 
 			records = append(records, Record{
-				key:     int(rowID),
+				key:     key,
 				columns: columns,
 			})
 		default:
@@ -307,7 +340,6 @@ func newNode(pageNumber int, pgr *pager.Pager, parent *node) (n *node, err error
 
 	if nextPageNumber > 0 {
 		children = append(children, &child{
-			key:        -1,
 			pageNumber: nextPageNumber,
 		})
 	}

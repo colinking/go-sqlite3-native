@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"fmt"
 	"io"
-	"strings"
 
 	"github.com/colinking/go-sqlite3-native/internal/pager"
 	"github.com/segmentio/events/v2"
@@ -60,11 +59,7 @@ func (t *Tree) nodeString(w io.Writer, pageNumber int, node *node) error {
 	}
 
 	for _, record := range node.records {
-		var row []string
-		for _, c := range record.columns {
-			row = append(row, c.String())
-		}
-		_, err := io.WriteString(textio.NewTreeWriter(tw), fmt.Sprintf("rowid=%d row=[ %s ]", record.key, strings.Join(row, " | ")))
+		_, err := io.WriteString(textio.NewTreeWriter(tw), record.String())
 		if err != nil {
 			return err
 		}
