@@ -51,6 +51,7 @@ func (e *Execution) run() {
 	activeTreeIndex := -1
 	trees := []*tree.Tree{}
 	row := []tree.Column{}
+	registers := &Registers{}
 
 	for pc := 0; pc < len(e.program.Instructions); pc++ {
 		inst := e.program.Instructions[pc]
@@ -152,6 +153,55 @@ func (e *Execution) run() {
 				pc = inst.P2
 				pc-- // negate pc++
 			}
+
+		case OpcodeString8: // https://www.sqlite.org/opcode.html#String8
+			s := inst.P4.s
+			idx := inst.P2
+			registers.SetString(idx, s)
+
+		case OpcodeCast: // https://www.sqlite.org/opcode.html#Cast
+			idx := inst.P1
+			typ := inst.P2
+
+			var err error
+			switch typ {
+			case 'A': // BLOB
+				err = registers.CastAsBlob(idx)
+			case 'B': // TEXT
+				err = registers.CastAsString(idx)
+			case 'D': // INTEGER
+				err = registers.CastAsInt(idx)
+			case 'E': // REAL
+				err = registers.CastAsFloat(idx)
+			default:
+				e.done <- fmt.Errorf("unknown/unsupported typ=%+v", typ)
+				return
+			}
+
+			if err != nil {
+				e.done <- err
+				return
+			}
+
+		case OpcodeIsNull: // https://www.sqlite.org/opcode.html#IsNull
+			idx := inst.P1
+			r := registers.Get(idx)
+			if r.typ == RegisterTypeNull {
+				pc = inst.P2
+				pc-- // negate pc++
+			}
+
+		case OpcodeSeekGE: // https://www.sqlite.org/opcode.html#SeekGE
+			e.done <- fmt.Errorf("todo: support SeekGe! %+v", inst)
+			return
+
+		case OpcodeIdxGT: // https://www.sqlite.org/opcode.html#IdxGT
+			e.done <- fmt.Errorf("todo: support IdxGT! %+v", inst)
+			return
+
+		case OpcodeDeferredSeek: // https://www.sqlite.org/opcode.html#DeferredSeek
+			e.done <- fmt.Errorf("todo: support DeferredSeek! %+v", inst)
+			return
 
 		default:
 			e.done <- fmt.Errorf("unknown opcode! %+v", inst)

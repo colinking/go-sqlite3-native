@@ -10,30 +10,34 @@ The goal of this project is to provide an optimized Go-native implementation of 
 
 This library supports [GOOS](https://gist.github.com/asukakenji/f15ba7e588ac42795f421b48b8aede63) of `[darwin, linux]` and [GOARCH](https://gist.github.com/asukakenji/f15ba7e588ac42795f421b48b8aede63) of `[amd64]`.
 
-This library supports queries of the following pattern:
+This library supports the following SQLite features. The list of unsupported features is not complete. Keep in mind this repo aims to minimize complexity by supporting only a specific subset of functionality, so it is unlikely to support any of the unsupported features, unless otherwise noted.
 
-```sql
-SELECT <cols|*>
-FROM <table|pragma_table_info(?)>
-[WHERE <clause> [ AND|OR <clause>]?]
-[ORDER BY <id>]
-[LIMIT <n>]
-```
-
-It also supports the following SQLite features:
-
-| Feature | Support |
-| -- | ---- |
-| WAL Journaling | ✅ Yes, except for checkpointing and recovery |
-| Legacy (Rollback) Journaling | ❌ No |
-| Pragmas | ❌ `pragma_table_info`, but no others |
-| `WITHOUT ROWID` tables | ❌ |
-| DB Type: File | ✅ |
-| DB Type: `:memory:` | ❌ (PRs welcome) |
-| DB Type: Temporary | ❌ |
-| `ATTACH/DETACH` | ❌ |
-| Handlers | ❌ |
-| ... | ... |
+| Namespace | Feature | Support |
+| -- | -- | ---- |
+| SQL | `SELECT *` | ✅ |
+| SQL | `SELECT <column> [, <column>]*` | ✅ |
+| SQL | `SELECT ROWID` | ✅ |
+| SQL | `CAST(<column> AS BLOB|...)` | ✅ |
+| SQL | `FROM <tableName>` | ✅ |
+| SQL | `FROM pragma_table_info(?)` | ✅ |
+| SQL | `WHERE <clause> [AND|OR <clause>]*` | ✅ |
+| SQL | `ORDER BY <column> [ASC|DESC]` | ✅ |
+| SQL | `LIMIT <n>` | ✅ |
+| SQL | `WITHOUT ROWID` tables | ❌ |
+| SQL | `ATTACH/DETACH` | ❌ |
+| SQL | Pragmas | ❌ `pragma_table_info`, but no others |
+| SQL | `JOIN` (any kind) | ❌ |
+| Journaling | WAL | ✅ Yes, except for checkpointing and recovery |
+| Journaling | Legacy (Rollback) | ❌ |
+| DB Types | File | ✅ |
+| DB Types | `:memory:` | ❌ (PRs welcome!) |
+| DB Types | Temporary | ❌ |
+| Indexes | Primary Key | ✅ |
+| Collation | Binary | ✅ |
+| Text Encoding | UTF-8 | ✅ |
+| Text Encoding | UTF-16 | ❌ |
+| SQLite | Handlers | ❌ |
+| ... | ... | ... |
 
 Using the client for any unsupported features will lead to undefined behavior.
 
