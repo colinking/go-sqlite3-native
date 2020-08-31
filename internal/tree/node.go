@@ -250,7 +250,7 @@ func newNode(pageNumber int, pgr *pager.Pager, parent *node) (n *node, err error
 			ptr += 4
 
 			var key []byte
-			if typ == TreeTypeIndexInterior {
+			if typ == TreeTypeTableInterior {
 				// A varint which is the integer key
 				_, size := internal.Varint(page[ptr:])
 				// We ignore the varint value because we want to store the key as []byte
