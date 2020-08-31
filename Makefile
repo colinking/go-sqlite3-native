@@ -36,3 +36,33 @@ lint:
 test:
 	$Q go test -race -v -count=1 ./...
 .PHONY: test
+
+# `make diff QUERY="select * from bar" DB=stage.db` will print out a colored diff of that query
+# run on DB using sqlite3 and with the Go client.
+diff: QUERY=select * from core___source_id_write_key_mapping;
+diff: DB=stage.db
+diff:
+	$Q go run ./cmd/main.go query tmp/${DB} "${QUERY}" > tmp/go.out
+	$Q sqlite3 tmp/${DB} "${QUERY}" > tmp/c.out
+	$Q colordiff tmp/c.out tmp/go.out
+.PHONY: diff
+
+# `make search QUERY=foobar DB=stage.db` will print out the byte offsets of QUERY within DB.
+# Accepts raw bytes (if using \x notation per byte) or ASCII strings.
+search: QUERY=vb3bcHdvxEGjneRfwmJNzJ
+search: DB=stage.db
+search:
+	$Q docker run -it --rm -v "$$(pwd):/binwalk" rjocoleman/binwalk -R=${QUERY} /binwalk/tmp/${DB}
+.PHONY: search
+
+dump: OFFSET=0x5DEBCC4
+dump: DB=stage.db
+dump:
+	$Q docker run -it --rm -v "$$(pwd):/binwalk" rjocoleman/binwalk --hexdump --offset=${OFFSET} --length=4096 /binwalk/tmp/${DB}
+.PHONY: dump
+
+like: QUERY=3bcHdvxE
+like: DB=stage.db
+like:
+	$Q sqlite3 ./tmp/${DB} "select ROWID, * from core___source_id_write_key_mapping where write_key LIKE '%${QUERY}%' OR source_id LIKE '%${QUERY}%';"
+.PHONY: like

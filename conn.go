@@ -146,6 +146,39 @@ func (c *Conn) PrepareContext(ctx context.Context, query string) (driver.Stmt, e
 			NumPlaceholders: 0,
 			Columns:         []string{"write_key", "source_id"},
 		}
+	case "select * from core___source_id_write_key_mapping;":
+		// This only works on tmp/stage.db
+		/*
+			sqlite> explain select * from core___source_id_write_key_mapping;
+			addr  opcode         p1    p2    p3    p4             p5  comment
+			----  -------------  ----  ----  ----  -------------  --  -------------
+			0     Init           0     8     0                    00  Start at 8
+			1     OpenRead       0     81    0     2              00  root=81 iDb=0; core___source_id_write_key_mapping
+			2     Rewind         0     7     0                    00
+			3       Column         0     0     1                    00  r[1]=core___source_id_write_key_mapping.write_key
+			4       Column         0     1     2                    00  r[2]=core___source_id_write_key_mapping.source_id
+			5       ResultRow      1     2     0                    00  output=r[1..2]
+			6     Next           0     3     0                    01
+			7     Halt           0     0     0                    00
+			8     Transaction    0     0     167193  0              01  usesStmtJournal=0
+			9     Goto           0     1     0                    00
+		*/
+		program = vm.Program{
+			Instructions: []vm.Instruction{
+				vm.NewInstruction(vm.OpcodeInit, 0, 8, 0, 0, 0),
+				vm.NewInstruction(vm.OpcodeOpenRead, 0, 81, 0, 2, 0),
+				vm.NewInstruction(vm.OpcodeRewind, 0, 7, 0, 0, 0),
+				vm.NewInstruction(vm.OpcodeColumn, 0, 0, 1, 0, 0),
+				vm.NewInstruction(vm.OpcodeColumn, 0, 1, 2, 0, 0),
+				vm.NewInstruction(vm.OpcodeResultRow, 1, 2, 0, 0, 0),
+				vm.NewInstruction(vm.OpcodeNext, 0, 3, 0, 0, 1),
+				vm.NewInstruction(vm.OpcodeHalt, 0, 0, 0, 0, 0),
+				vm.NewInstruction(vm.OpcodeTransaction, 0, 0, 167193, 0, 1),
+				vm.NewInstruction(vm.OpcodeGoto, 0, 1, 0, 0, 0),
+			},
+			NumPlaceholders: 0,
+			Columns:         []string{"write_key", "source_id"},
+		}
 	default:
 		return nil, fmt.Errorf("unsupported query: '%s'", query)
 	}

@@ -15,6 +15,30 @@ import (
 // which can be read and modified under serializable ACID semantics.
 type Page []byte
 
+func (p Page) String() string {
+	table := len(p) > 16
+	s := ""
+	if table {
+		s += "OFFSET\n-------------------------------------------------------------\n"
+	}
+
+	for i := 0; i < len(p); i += 16 {
+		if table {
+			s += fmt.Sprintf("0x%08X  ", i)
+		}
+
+		for j := i; j < i+16 && j < len(p); j++ {
+			s += fmt.Sprintf("%02X ", p[j])
+		}
+
+		if table {
+			s += "|\n"
+		}
+	}
+
+	return s
+}
+
 // Pager is a cache layer on top of an OS file that supports read and write
 // methods which operate under serializable ACID semantics.
 type Pager struct {
@@ -32,7 +56,7 @@ type Pager struct {
 }
 
 func NewPager(path string) (*Pager, error) {
-	events.Debug("opening SQLite DB at: %s", path)
+	events.Debug("opening SQLite DB: path=%s", path)
 
 	file, err := os.Open(path)
 	if err != nil {

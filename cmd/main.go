@@ -4,6 +4,7 @@ import (
 	"errors"
 	"fmt"
 	_ "net/http/pprof"
+	"os"
 	"strings"
 	"time"
 
@@ -17,13 +18,11 @@ import (
 	"github.com/segmentio/events/v2"
 	_ "github.com/segmentio/events/v2/ecslogs"
 	_ "github.com/segmentio/events/v2/sigevents"
+	"github.com/segmentio/events/v2/text"
 	_ "github.com/segmentio/events/v2/text"
 )
 
 func main() {
-	// TODO: make configurable with a flag
-	events.DefaultLogger.EnableDebug = false
-
 	// These commands are used for debugging the Go client on a SQLite DB.
 	cli.Exec(cli.CommandSet{
 		"printHeader": cli.Command(printHeader),
@@ -36,8 +35,25 @@ func main() {
 	})
 }
 
+type defaultFlags struct {
+	Debug bool `flag:"--debug" help:"Enables more verbose debug logging"`
+}
+
+func (f defaultFlags) Load() {
+	events.DefaultLogger.EnableDebug = f.Debug
+
+	// Disable prefixes for text logging
+	if events.IsTerminal(1) {
+		events.DefaultHandler = &text.Handler{
+			Output: os.Stdout,
+		}
+	}
+}
+
 // Dumps the contents of a SQLite DB header.
-func printHeader(_ struct{}, path string) (int, error) {
+func printHeader(flags defaultFlags, path string) (int, error) {
+	flags.Load()
+
 	p, err := pager.NewPager(path)
 	if err != nil {
 		return 1, err
@@ -59,7 +75,9 @@ func printHeader(_ struct{}, path string) (int, error) {
 }
 
 // Dumps the contents of a tree.
-func printTree(_ struct{}, path string) (int, error) {
+func printTree(flags defaultFlags, path string, page int) (int, error) {
+	flags.Load()
+
 	p, err := pager.NewPager(path)
 	if err != nil {
 		return 1, err
@@ -72,19 +90,23 @@ func printTree(_ struct{}, path string) (int, error) {
 		}
 	}()
 
-	page := 2
 	t, err := tm.Open(page)
 	if err != nil {
 		return 1, err
 	}
 
-	fmt.Printf("%+v\n", t)
+	fmt.Printf("%+v\n", t.String())
+	if err := t.Err(); err != nil {
+		return 1, err
+	}
 
 	return 0, nil
 }
 
 // Executes a query on a given DB.
-func query(_ struct{}, path, query string) (int, error) {
+func query(flags defaultFlags, path, query string) (int, error) {
+	flags.Load()
+
 	db, err := sql.Open("sqlite3-native", path)
 	if err != nil {
 		return 1, err
@@ -164,26 +186,3 @@ func query(_ struct{}, path, query string) (int, error) {
 
 	return 0, nil
 }
-
-// Records stats on lock usage for a SQLite DB.
-// func lockStats(_ struct{}, path string) (int, error) {
-// 	p, err := pager.NewPager(path)
-// 	if err != nil {
-// 		return 1, err
-// 	}
-// 	defer p.Close()
-
-// 	err = p.Lock(pager.LockTypeShared)
-// 	if err != nil {
-// 		return 1, err
-// 	}
-// 	defer func() {
-// 		if err := p.Unlock(pager.LockTypeNoLock); err != nil {
-// 			events.Log("failed to unlock: %+v", err)
-// 		}
-// 	}()
-
-// 	time.Sleep(100 * time.Second)
-
-// 	return 0, nil
-// }

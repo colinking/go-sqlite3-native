@@ -9,12 +9,25 @@
       "type": "go",
       "request": "launch",
       "mode": "auto",
-      "program": "${fileDirname}/../cmd/main.go",
+      "program": "${workspaceFolder}/cmd/main.go",
       "env": {},
       "args": [
         "query",
-        "${fileDirname}/../tmp/stage.db",
+        "${workspaceFolder}/tmp/stage.db",
         "select * from core___source_id_write_key_mapping where write_key=CAST('eE7e8Kpd7Xv6WJ8gzCofFh' AS BLOB);"
+      ]
+    },
+    {
+      "name": "Debug Tree",
+      "type": "go",
+      "request": "launch",
+      "mode": "auto",
+      "program": "${workspaceFolder}/cmd/main.go",
+      "args": [
+        "printTree",
+        "${workspaceFolder}/tmp/stage.db",
+        "24045",
+        "--debug=true"
       ]
     }
   ]

@@ -4,7 +4,6 @@ import (
 	"fmt"
 
 	"github.com/colinking/go-sqlite3-native/internal/tree"
-	"github.com/segmentio/events/v2"
 )
 
 const (
@@ -52,8 +51,6 @@ func (e *Execution) run() {
 	activeTreeIndex := -1
 	trees := []*tree.Tree{}
 	row := []tree.Column{}
-
-	events.Debug("Executing program:\n%s", e.program)
 
 	for pc := 0; pc < len(e.program.Instructions); pc++ {
 		inst := e.program.Instructions[pc]
@@ -121,6 +118,8 @@ func (e *Execution) run() {
 
 			// TODO: assert the opened b-tree has numColumns
 
+			// TODO: consider incorporating P5's OPFLAG_SEEKEQ to optimize tree lookups
+
 		case OpcodeRewind: // https://www.sqlite.org/opcode.html#Rewind
 			treeIdx := inst.P1
 			activeTreeIndex = treeIdx // signal which tree to use, to the next call to Column/etc.
@@ -140,7 +139,6 @@ func (e *Execution) run() {
 			row = append(row, column)
 
 		case OpcodeResultRow: // https://www.sqlite.org/opcode.html#ResultRow
-			events.Debug("result row: %+v", row)
 			e.results <- row
 
 			// Reset the row
