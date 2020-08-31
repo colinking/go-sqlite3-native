@@ -22,14 +22,14 @@ func Varint(buf []byte) (int, int) {
 //   bytes and all 8 bits of the ninth byte are used to reconstruct the
 //   64-bit twos-complement integer. Varints are big-endian: bits taken from
 //   the earlier byte of the varint are more significant than bits taken
-//   from the later bytes.
+//   from the later bytes. (https://www.sqlite.org/fileformat2.html)
 //
-//   Source: https://www.sqlite.org/fileformat2.html
+// Note:
 //
-// Note: SQLite4 proposed a variation of the varint used in SQLite3:
-// http://www.sqlite.org/src4/doc/trunk/www/varint.wiki
-// So keep in mind that SQLite3 uses a different implementation, as
-// implemented below.
+//   SQLite4 proposed a variation of the varint used in SQLite3:
+//   http://www.sqlite.org/src4/doc/trunk/www/varint.wiki
+//   So keep in mind that you may see references to a variation of this
+//   type of varint.
 func PutVarint(buf []byte, out *int) int {
 	// (bX & 0x80) is non-zero if the high-bit of x is set. For SQLite3's varint,
 	// we select all bytes from buf[0] to buf[y] where (buf[y] & 0x80 == 0).
@@ -91,6 +91,7 @@ func PutVarint(buf []byte, out *int) int {
 		return 8
 	}
 
+	// 9-byte varint: [7.205759404e16, 1.844674407e19)
 	b8 := buf[8]
 	*out = int(b0&0x7f)<<56 | int(b1&0x7f)<<49 | int(b2&0x7f)<<42 | int(b3&0x7f)<<35 | int(b4&0x7f)<<28 | int(b5&0x7f)<<21 | int(b6&0x7f)<<14 | int(b7&0x7f)<<7 | int(b8)
 	return 9

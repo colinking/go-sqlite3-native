@@ -21,7 +21,6 @@ type node struct {
 	numCells               int
 	contentOffset          int
 	numFreeBytes           int
-	nextPageNumber         int
 	cellPointerArrayOffset int
 
 	// the content of this node
@@ -142,8 +141,8 @@ func columnContentSize(typ int) int {
 		return 8
 	case 10, 11:
 		// https://github.com/sqlite/sqlite/blob/96e3c39bd58ede59150c00e4f8609cbac674ffae/tool/offsets.c#L216
-		return 0
-		// panic(fmt.Errorf("cannot support columns of type=%d", typ))
+		// return 0
+		panic(fmt.Errorf("cannot support columns of type=%d", typ))
 	default:
 		if typ%2 == 0 {
 			return (typ - 12) / 2
@@ -306,6 +305,13 @@ func newNode(pageNumber int, pgr *pager.Pager, parent *node) (n *node, err error
 		}
 	}
 
+	if nextPageNumber > 0 {
+		children = append(children, &child{
+			key:        -1,
+			pageNumber: nextPageNumber,
+		})
+	}
+
 	return &node{
 		pager: pgr,
 
@@ -317,7 +323,6 @@ func newNode(pageNumber int, pgr *pager.Pager, parent *node) (n *node, err error
 		numCells:               numCells,
 		contentOffset:          contentOffset,
 		numFreeBytes:           numFreeBytes,
-		nextPageNumber:         nextPageNumber,
 		cellPointerArrayOffset: offset,
 
 		parent: parent,
